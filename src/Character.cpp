@@ -1,13 +1,14 @@
 // Character.cpp
 #include "Character.h"
-#include "GameConfig.h"
 #include "ConsoleUI.h"
+#include "GameConfig.h"
 
+#include <algorithm>
 #include <iostream>
 #include <sstream>
 
 Character::Character()
-    : name("未命名"),
+    : name("未命名角色"),
       level(GameConfig::DEFAULT_LEVEL),
       hp(GameConfig::DEFAULT_HP),
       maxHp(GameConfig::DEFAULT_HP),
@@ -33,7 +34,6 @@ void Character::create(const std::string& characterName)
 void Character::showInfo() const
 {
     ConsoleUI::printTitle("角色信息");
-
     std::cout << "姓名: " << name << "\n";
     std::cout << "等级: " << level << "\n";
     std::cout << "生命值: " << hp << "/" << maxHp << "\n";
@@ -45,28 +45,56 @@ void Character::showInfo() const
 
 void Character::gainExp(int amount)
 {
-    // TODO: 增加经验并调用 levelUpIfNeeded。
+    if (amount <= 0)
+    {
+        return;
+    }
+
+    exp += amount;
+    std::cout << name << " 获得了 " << amount << " 点经验值。\n";
+    levelUpIfNeeded();
 }
 
 void Character::gainGold(int amount)
 {
-    // TODO: 增加金币。
+    if (amount <= 0)
+    {
+        return;
+    }
+
+    gold += amount;
+    std::cout << name << " 获得了 " << amount << " 枚金币。\n";
 }
 
 bool Character::costGold(int amount)
 {
-    // TODO: 判断金币是否足够，足够则扣除。
-    return false;
+    if (amount < 0 || gold < amount)
+    {
+        return false;
+    }
+
+    gold -= amount;
+    return true;
 }
 
 void Character::takeDamage(int damage)
 {
-    // TODO: 根据伤害值扣除生命。
+    if (damage <= 0)
+    {
+        return;
+    }
+
+    hp = std::max(0, hp - damage);
 }
 
 void Character::heal(int amount)
 {
-    // TODO: 恢复生命值，不能超过 maxHp。
+    if (amount <= 0)
+    {
+        return;
+    }
+
+    hp = std::min(maxHp, hp + amount);
 }
 
 bool Character::isAlive() const
@@ -76,28 +104,72 @@ bool Character::isAlive() const
 
 void Character::levelUpIfNeeded()
 {
-    // TODO: 根据经验值判断是否升级，并提升 maxHp、attack、defense 等属性。
+    while (exp >= level * 100)
+    {
+        exp -= level * 100;
+        ++level;
+        maxHp += 20;
+        attack += 5;
+        defense += 2;
+        hp = maxHp;
+
+        ConsoleUI::setColor(GameConfig::COLOR_SUCCESS);
+        std::cout << "升级！" << name << " 达到了 " << level << " 级。\n";
+        std::cout << "最大生命值 +20，攻击力 +5，防御力 +2，生命值已回满。\n";
+        ConsoleUI::resetColor();
+    }
 }
 
 void Character::addAttack(int value)
 {
-    // TODO: 增加攻击力。
+    if (value > 0)
+    {
+        attack += value;
+    }
 }
 
 void Character::addDefense(int value)
 {
-    // TODO: 增加防御力。
+    if (value > 0)
+    {
+        defense += value;
+    }
 }
 
 std::string Character::serialize() const
 {
-    // TODO: 将角色属性拼接为可保存字符串。
-    return "";
+    std::ostringstream oss;
+    oss << name << '|'
+        << level << '|'
+        << hp << '|'
+        << maxHp << '|'
+        << exp << '|'
+        << gold << '|'
+        << attack << '|'
+        << defense;
+    return oss.str();
 }
 
 void Character::deserialize(const std::string& data)
 {
-    // TODO: 从字符串解析角色属性。
+    std::stringstream ss(data);
+    std::string token;
+
+    if (!std::getline(ss, name, '|')) return;
+    if (!std::getline(ss, token, '|')) return;
+    level = std::stoi(token);
+    if (!std::getline(ss, token, '|')) return;
+    hp = std::stoi(token);
+    if (!std::getline(ss, token, '|')) return;
+    maxHp = std::stoi(token);
+    if (!std::getline(ss, token, '|')) return;
+    exp = std::stoi(token);
+    if (!std::getline(ss, token, '|')) return;
+    gold = std::stoi(token);
+    if (!std::getline(ss, token, '|')) return;
+    attack = std::stoi(token);
+    if (!std::getline(ss, token, '|')) return;
+    defense = std::stoi(token);
 }
 
 std::string Character::getName() const { return name; }

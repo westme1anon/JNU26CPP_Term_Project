@@ -1,6 +1,7 @@
 // Enemy.cpp
 #include "Enemy.h"
 
+#include <algorithm>
 #include <iostream>
 
 Enemy::Enemy()
@@ -32,12 +33,21 @@ Enemy::Enemy(
 
 void Enemy::showInfo() const
 {
-    // TODO: 输出敌人名称、生命值、攻击、防御、奖励。
+    std::cout << name
+              << " | 生命值: " << hp
+              << " | 攻击: " << attack
+              << " | 防御: " << defense
+              << " | 奖励: " << rewardExp << " 经验, " << rewardGold << " 金币\n";
 }
 
 void Enemy::takeDamage(int damage)
 {
-    // TODO: 扣除敌人生命值，最低不低于 0。
+    if (damage <= 0)
+    {
+        return;
+    }
+
+    hp = std::max(0, hp - damage);
 }
 
 bool Enemy::isAlive() const

@@ -3,6 +3,7 @@
 #include "ConsoleUI.h"
 
 #include <iostream>
+#include <vector>
 
 GameManager::GameManager()
     : running(true)
@@ -144,7 +145,7 @@ void GameManager::taskMenu()
 
 void GameManager::battleMenu()
 {
-    // TODO: 调用 battleSystem.startBattle(player)。
+    battleSystem.startBattle(player);
 }
 
 void GameManager::aiAssistantMenu()
