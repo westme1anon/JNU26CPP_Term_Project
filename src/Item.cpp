@@ -29,9 +29,11 @@ FoodItem::FoodItem(const std::string& name, const std::string& description, int 
 {
 }
 
+// 使用食物：恢复生命值。
 void FoodItem::use(Character& player)
 {
-    // TODO: 调用 player.heal(recoverHp)，恢复生命值。
+    std::cout << "使用了 " << getName() << "，恢复了 " << recoverHp << " 点生命值！\n";
+    player.heal(recoverHp);
 }
 
 std::string FoodItem::getType() const
@@ -49,9 +51,11 @@ MedicineItem::MedicineItem(const std::string& name, const std::string& descripti
 {
 }
 
+// 使用药品：恢复大量生命值。
 void MedicineItem::use(Character& player)
 {
-    // TODO: 调用 player.heal(healAmount)，恢复更多生命值。
+    std::cout << "使用了 " << getName() << "，恢复了 " << healAmount << " 点生命值！\n";
+    player.heal(healAmount);
 }
 
 std::string MedicineItem::getType() const
@@ -77,9 +81,14 @@ EquipmentItem::EquipmentItem(
 {
 }
 
+// 使用装备：增加攻击力和防御力。
 void EquipmentItem::use(Character& player)
 {
-    // TODO: 增加玩家攻击力和防御力。
+    std::cout << "装备了 " << getName()
+              << "，攻击力 +" << attackBonus
+              << "，防御力 +" << defenseBonus << "！\n";
+    player.addAttack(attackBonus);
+    player.addDefense(defenseBonus);
 }
 
 std::string EquipmentItem::getType() const

@@ -4,32 +4,75 @@
 
 #include <iostream>
 
+// 添加物品到背包。
 void Inventory::addItem(std::unique_ptr<Item> item)
 {
-    // TODO: 将物品加入 items。
+    items.push_back(std::move(item));
 }
 
+// 显示背包内全部物品。
 void Inventory::showItems() const
 {
-    // TODO: 遍历 items，显示物品编号、名称、类型、价格、描述。
+    if (items.empty())
+    {
+        std::cout << "背包为空。\n";
+        return;
+    }
+
+    std::cout << "── 背包物品 ──\n";
+    for (int i = 0; i < static_cast<int>(items.size()); ++i)
+    {
+        std::cout << (i + 1) << ". [" << items[i]->getType() << "] "
+                  << items[i]->getName()
+                  << " | 售价: " << items[i]->getPrice()
+                  << " | " << items[i]->getDescription() << "\n";
+    }
 }
 
+// 使用指定下标的物品。使用后从背包删除。
 bool Inventory::useItem(int index, Character& player)
 {
-    // TODO: 校验 index，调用物品 use 方法，使用后根据规则决定是否删除。
-    return false;
+    // 用户输入编号从 1 开始，vector 下标从 0 开始
+    if (index < 1 || index > static_cast<int>(items.size()))
+    {
+        std::cout << "编号无效！\n";
+        return false;
+    }
+
+    int realIndex = index - 1;
+    items[realIndex]->use(player);
+    items.erase(items.begin() + realIndex);
+    return true;
 }
 
+// 删除指定下标的物品。
 bool Inventory::removeItem(int index)
 {
-    // TODO: 校验 index，从 vector 中删除对应物品。
-    return false;
+    if (index < 1 || index > static_cast<int>(items.size()))
+    {
+        std::cout << "编号无效！\n";
+        return false;
+    }
+
+    int realIndex = index - 1;
+    items.erase(items.begin() + realIndex);
+    std::cout << "物品已删除。\n";
+    return true;
 }
 
+// 将指定物品从背包取出，用于出售。
 std::unique_ptr<Item> Inventory::sellItem(int index)
 {
-    // TODO: 校验 index，将对应 unique_ptr 移出并从背包删除。
-    return nullptr;
+    if (index < 1 || index > static_cast<int>(items.size()))
+    {
+        std::cout << "编号无效！\n";
+        return nullptr;
+    }
+
+    int realIndex = index - 1;
+    std::unique_ptr<Item> item = std::move(items[realIndex]);
+    items.erase(items.begin() + realIndex);
+    return item;
 }
 
 bool Inventory::isEmpty() const
@@ -42,8 +85,13 @@ int Inventory::size() const
     return static_cast<int>(items.size());
 }
 
+// 获取指定下标物品的只读指针。
 const Item* Inventory::getItem(int index) const
 {
-    // TODO: 校验 index 并返回只读指针。
-    return nullptr;
+    if (index < 1 || index > static_cast<int>(items.size()))
+    {
+        return nullptr;
+    }
+
+    return items[index - 1].get();
 }
