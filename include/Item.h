@@ -48,6 +48,7 @@ private:
     int recoverHp;
 
 public:
+    friend class SaveManager; // 声明 SaveManager 为友元类，以便访问私有成员 recoverHp
     FoodItem(const std::string& name, const std::string& description, int price, int recoverHp);
 
     void use(Character& player) override;
@@ -62,6 +63,7 @@ private:
     int healAmount;
 
 public:
+    friend class SaveManager; // 声明 SaveManager 为友元类，以便访问私有成员 healAmount
     MedicineItem(const std::string& name, const std::string& description, int price, int healAmount);
 
     void use(Character& player) override;
@@ -77,6 +79,7 @@ private:
     int defenseBonus;
 
 public:
+    friend class SaveManager; // 声明 SaveManager 为友元类，以便访问私有成员 attackBonus 和 defenseBonus
     EquipmentItem(
         const std::string& name,
         const std::string& description,

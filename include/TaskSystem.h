@@ -19,9 +19,13 @@ private:
     std::vector<Task> tasks;
 
 public:
+    friend class SaveManager; // 声明 SaveManager 为友元类，以便访问私有成员 tasks
+
     TaskSystem();
 
-    // 加载任务数据。
+    bool showTaskDetail(int index) const;
+
+    // 加载任务数据。    
     void loadTasks();
 
     // 显示所有任务。

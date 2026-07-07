@@ -19,7 +19,7 @@ void TaskSystem::loadTasks()
     std::ifstream file(GameConfig::TASKS_FILE_PATH);
     if (!file.is_open())
     {
-        std::cerr << "¾¯¸æ: ÎÞ·¨´ò¿ªÈÎÎñÊý¾ÝÎÄ¼þ " << GameConfig::TASKS_FILE_PATH << "\n";
+        std::cerr << "è­¦å‘Š: æ— æ³•æ‰“å¼€ä»»åŠ¡æ•°æ®æ–‡ä»¶ " << GameConfig::TASKS_FILE_PATH << "\n";
         return;
     }
 
@@ -51,13 +51,13 @@ void TaskSystem::showTasks() const
 {
     if (tasks.empty())
     {
-        std::cout << "µ±Ç°Ã»ÓÐ¿ÉÓÃÈÎÎñ¡£\n";
+        std::cout << "å½“å‰æ²¡æœ‰å¯ç”¨ä»»åŠ¡ã€‚\n";
         return;
     }
 
     ConsoleUI::printLine('-', 60);
 
-    std::cout << "±àºÅ  ÈÎÎñÃû³Æ            ×´Ì¬\n";
+    std::cout << "ç¼–å·  ä»»åŠ¡åç§°            çŠ¶æ€\n";
     ConsoleUI::printLine('-', 60);
 
     for (size_t i = 0; i < tasks.size(); ++i)
@@ -69,21 +69,21 @@ void TaskSystem::showTasks() const
         switch (tasks[i].getStatus())
         {
         case TaskStatus::NotAccepted:
-            std::cout << "Î´½ÓÊÜ";
+            std::cout << "æœªæŽ¥å—";
             break;
         case TaskStatus::Accepted:
             ConsoleUI::setColor(GameConfig::COLOR_WARNING);
-            std::cout << "½øÐÐÖÐ";
+            std::cout << "è¿›è¡Œä¸­";
             ConsoleUI::resetColor();
             break;
         case TaskStatus::Completed:
             ConsoleUI::setColor(GameConfig::COLOR_SUCCESS);
-            std::cout << "ÒÑÍê³É";
+            std::cout << "å·²å®Œæˆ";
             ConsoleUI::resetColor();
             break;
         case TaskStatus::RewardClaimed:
             ConsoleUI::setColor(GameConfig::COLOR_TITLE);
-            std::cout << "ÒÑÁì½±";
+            std::cout << "å·²é¢†å¥–";
             ConsoleUI::resetColor();
             break;
         }
@@ -98,7 +98,7 @@ bool TaskSystem::acceptTask(int index)
     if (index < 0 || index >= static_cast<int>(tasks.size()))
     {
         ConsoleUI::setColor(GameConfig::COLOR_ERROR);
-        std::cout << "ÎÞÐ§µÄÈÎÎñ±àºÅ¡£\n";
+        std::cout << "æ— æ•ˆçš„ä»»åŠ¡ç¼–å·ã€‚\n";
         ConsoleUI::resetColor();
         return false;
     }
@@ -112,7 +112,7 @@ bool TaskSystem::completeTask(int index)
     if (index < 0 || index >= static_cast<int>(tasks.size()))
     {
         ConsoleUI::setColor(GameConfig::COLOR_ERROR);
-        std::cout << "ÎÞÐ§µÄÈÎÎñ±àºÅ¡£\n";
+        std::cout << "æ— æ•ˆçš„ä»»åŠ¡ç¼–å·ã€‚\n";
         ConsoleUI::resetColor();
         return false;
     }
@@ -126,7 +126,7 @@ bool TaskSystem::claimReward(int index, Character& player)
     if (index < 0 || index >= static_cast<int>(tasks.size()))
     {
         ConsoleUI::setColor(GameConfig::COLOR_ERROR);
-        std::cout << "ÎÞÐ§µÄÈÎÎñ±àºÅ¡£\n";
+        std::cout << "æ— æ•ˆçš„ä»»åŠ¡ç¼–å·ã€‚\n";
         ConsoleUI::resetColor();
         return false;
     }
@@ -140,7 +140,7 @@ bool TaskSystem::showTaskDetail(int index) const
     if (index < 0 || index >= static_cast<int>(tasks.size()))
     {
         ConsoleUI::setColor(GameConfig::COLOR_ERROR);
-        std::cout << "ÎÞÐ§µÄÈÎÎñ±àºÅ¡£\n";
+        std::cout << "æ— æ•ˆçš„ä»»åŠ¡ç¼–å·ã€‚\n";
         ConsoleUI::resetColor();
         return false;
     }

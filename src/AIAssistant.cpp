@@ -4,8 +4,11 @@
 #include <sstream>
 #include <stdexcept>
 #include <cstdlib>
+#if defined(ENABLE_CURL_AI)
 #include <curl/curl.h>
+#endif
 
+#if defined(ENABLE_CURL_AI)
 // 静态回调函数，将 libcurl 接收到的响应数据写入 string 对象
 static size_t WriteCallback(void* contents, size_t size, size_t nmemb, void* userp)
 {
@@ -15,6 +18,7 @@ static size_t WriteCallback(void* contents, size_t size, size_t nmemb, void* use
         str->append(static_cast<char*>(contents), totalSize);
     return totalSize;
 }
+#endif
 
 AIAssistant::AIAssistant() {
     initTips();
@@ -59,6 +63,7 @@ std::string AIAssistant::suggestAction(const Character& player, const Inventory&
     std::string gameState = stateStream.str();
 
     // 检查 DeepSeek API Key 是否存在
+#if defined(ENABLE_CURL_AI)
     const char* apiKey = std::getenv("DEEPSEEK_API_KEY");
     if (apiKey && *apiKey != '\0') {
         // DeepSeek API 接口配置
@@ -143,6 +148,7 @@ std::string AIAssistant::suggestAction(const Character& player, const Inventory&
             curl_global_cleanup();
         }
     }
+#endif
 
     // 如果没有可用的AI服务或API调用失败，则使用规则系统提供默认建议
     if (player.getHp() < player.getMaxHp() / 3) {
