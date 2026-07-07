@@ -23,3 +23,24 @@
 /main_env_test.exe
 /main_test.exe
 /main_test_curlflag.exe
+
+## --------- Visual Studio 垃圾文件忽略列表 ---------
+## 忽略 VS 自动生成的本地缓存和配置
+.vs/
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+
+## 忽略编译生成的二进制文件（每次编译都会变）
+[Dd]ebug/
+[Release]/
+x64/
+x86/
+bld/
+[Bb]in/
+[Oo]bj/
+
+## 忽略本地日志和临时文件
+*.log
+*.tmp
