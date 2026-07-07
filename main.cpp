@@ -1,5 +1,6 @@
 // main.cpp
 
+#include "EnvLoader.h"
 #include "GameManager.h"
 
 #include <iostream>
@@ -13,6 +14,8 @@
 
 int main()
 {
+    loadEnvFile(".env");
+
     GameManager game;
 
     game.init();

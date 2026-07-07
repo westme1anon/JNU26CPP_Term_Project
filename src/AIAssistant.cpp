@@ -4,11 +4,18 @@
 #include <sstream>
 #include <stdexcept>
 #include <cstdlib>
-#if defined(ENABLE_CURL_AI)
+
+#if defined(ENABLE_CURL_AI) && defined(__has_include)
+#if __has_include(<curl/curl.h>)
+#define AIASSISTANT_HAS_CURL 1
+#endif
+#endif
+
+#if defined(AIASSISTANT_HAS_CURL)
 #include <curl/curl.h>
 #endif
 
-#if defined(ENABLE_CURL_AI)
+#if defined(AIASSISTANT_HAS_CURL)
 // 静态回调函数，将 libcurl 接收到的响应数据写入 string 对象
 static size_t WriteCallback(void* contents, size_t size, size_t nmemb, void* userp)
 {
@@ -63,7 +70,7 @@ std::string AIAssistant::suggestAction(const Character& player, const Inventory&
     std::string gameState = stateStream.str();
 
     // 检查 DeepSeek API Key 是否存在
-#if defined(ENABLE_CURL_AI)
+#if defined(AIASSISTANT_HAS_CURL)
     const char* apiKey = std::getenv("DEEPSEEK_API_KEY");
     if (apiKey && *apiKey != '\0') {
         // DeepSeek API 接口配置
@@ -119,6 +126,8 @@ std::string AIAssistant::suggestAction(const Character& player, const Inventory&
             // 执行 HTTP POST 请求
             CURLcode res = curl_easy_perform(curl);
             if (res == CURLE_OK) {
+                long httpStatus = 0;
+                curl_easy_getinfo(curl, CURLINFO_RESPONSE_CODE, &httpStatus);
                 // 请求成功，尝试从 JSON 响应中提取 AI 给出的建议
                 std::string suggestion;
                 size_t contentPos = responseData.find("\"content\"");
@@ -139,8 +148,11 @@ std::string AIAssistant::suggestAction(const Character& player, const Inventory&
                     curl_global_cleanup();
                     return suggestion;
                 }
+                std::cerr << "[AI助手] DeepSeek API 返回了 HTTP " << httpStatus
+                          << "，但未能从响应中解析出建议。" << std::endl;
             } else {
-                std::cerr << "[AI助手] DeepSeek API调用失败，错误码: " << res << std::endl;
+                std::cerr << "[AI助手] DeepSeek API调用失败，错误码: " << res
+                          << "，错误信息: " << curl_easy_strerror(res) << std::endl;
             }
             // 清理CURL资源
             curl_easy_cleanup(curl);

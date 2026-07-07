@@ -1,0 +1,25 @@
+# Local environment secrets
+.env
+
+# CMake and build outputs
+/build/
+/CMakeCache.txt
+/CMakeFiles/
+/cmake_install.cmake
+/compile_commands.json
+/Makefile
+
+# Windows / native binaries
+*.exe
+*.dll
+*.obj
+*.o
+*.a
+*.lib
+
+# Local test build artifacts used during development
+/main_ai_build_test.exe
+/main_curl_test.exe
+/main_env_test.exe
+/main_test.exe
+/main_test_curlflag.exe
