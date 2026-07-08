@@ -8,6 +8,15 @@
 #include <iostream>
 #include <sstream>
 #include <string>
+#include <unordered_map>
+#include <vector>
+
+#if defined(_WIN32)
+#ifndef NOMINMAX
+#define NOMINMAX
+#endif
+#include <windows.h>
+#endif
 
 namespace
 {
@@ -38,6 +47,81 @@ std::string trim(const std::string& value)
 
     const std::size_t end = value.find_last_not_of(whitespace);
     return value.substr(start, end - start + 1);
+}
+
+std::filesystem::path executableDirectory()
+{
+#if defined(_WIN32)
+    std::vector<char> buffer(MAX_PATH);
+    DWORD length = GetModuleFileNameA(nullptr, buffer.data(), static_cast<DWORD>(buffer.size()));
+    while (length == buffer.size())
+    {
+        buffer.resize(buffer.size() * 2);
+        length = GetModuleFileNameA(nullptr, buffer.data(), static_cast<DWORD>(buffer.size()));
+    }
+    if (length == 0)
+    {
+        return {};
+    }
+    return std::filesystem::path(std::string(buffer.data(), length)).parent_path();
+#else
+    return {};
+#endif
+}
+
+std::filesystem::path findFileUpwards(
+    const std::filesystem::path& startDir,
+    const std::filesystem::path& relativePath,
+    int maxLevels = 6
+)
+{
+    if (startDir.empty())
+    {
+        return {};
+    }
+
+    std::filesystem::path current = startDir;
+    for (int level = 0; level <= maxLevels; ++level)
+    {
+        const std::filesystem::path candidate = current / relativePath;
+        if (std::filesystem::exists(candidate))
+        {
+            return candidate;
+        }
+
+        if (!current.has_parent_path())
+        {
+            break;
+        }
+
+        const std::filesystem::path parent = current.parent_path();
+        if (parent == current)
+        {
+            break;
+        }
+        current = parent;
+    }
+
+    return {};
+}
+
+std::filesystem::path findPythonScriptPath()
+{
+    const std::filesystem::path relativeScript = std::filesystem::path("scripts") / "ai_helper.py";
+
+    if (std::filesystem::exists(relativeScript))
+    {
+        return relativeScript;
+    }
+
+    const std::filesystem::path cwdMatch =
+        findFileUpwards(std::filesystem::current_path(), relativeScript);
+    if (!cwdMatch.empty())
+    {
+        return cwdMatch;
+    }
+
+    return findFileUpwards(executableDirectory(), relativeScript);
 }
 
 std::string buildGameState(const Character& player, const Inventory& inventory)
@@ -143,8 +227,8 @@ AiQueryResult queryPythonAssistant(const std::string& gameState)
     }
 #endif
 
-    const std::filesystem::path scriptPath = std::filesystem::path("scripts") / "ai_helper.py";
-    if (!std::filesystem::exists(scriptPath))
+    const std::filesystem::path scriptPath = findPythonScriptPath();
+    if (scriptPath.empty())
     {
 #if defined(_WIN32)
         free(apiKeyBuffer);

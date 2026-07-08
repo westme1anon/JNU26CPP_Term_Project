@@ -1,8 +1,17 @@
 #include "EnvLoader.h"
 
 #include <cstdlib>
+#include <filesystem>
 #include <fstream>
 #include <string>
+#include <vector>
+
+#if defined(_WIN32)
+#ifndef NOMINMAX
+#define NOMINMAX
+#endif
+#include <windows.h>
+#endif
 
 namespace
 {
@@ -48,6 +57,62 @@ void setEnvironmentValue(const std::string& key, const std::string& value)
     setenv(key.c_str(), value.c_str(), 0);
 #endif
 }
+
+std::filesystem::path executableDirectory()
+{
+#if defined(_WIN32)
+    std::vector<char> buffer(MAX_PATH);
+    DWORD length = GetModuleFileNameA(nullptr, buffer.data(), static_cast<DWORD>(buffer.size()));
+    while (length == buffer.size())
+    {
+        buffer.resize(buffer.size() * 2);
+        length = GetModuleFileNameA(nullptr, buffer.data(), static_cast<DWORD>(buffer.size()));
+    }
+    if (length == 0)
+    {
+        return {};
+    }
+    return std::filesystem::path(std::string(buffer.data(), length)).parent_path();
+#else
+    return {};
+#endif
+}
+
+std::filesystem::path findFileUpwards(
+    const std::filesystem::path& startDir,
+    const std::filesystem::path& relativePath,
+    int maxLevels = 6
+)
+{
+    if (startDir.empty())
+    {
+        return {};
+    }
+
+    std::filesystem::path current = startDir;
+    for (int level = 0; level <= maxLevels; ++level)
+    {
+        const std::filesystem::path candidate = current / relativePath;
+        if (std::filesystem::exists(candidate))
+        {
+            return candidate;
+        }
+
+        if (!current.has_parent_path())
+        {
+            break;
+        }
+
+        const std::filesystem::path parent = current.parent_path();
+        if (parent == current)
+        {
+            break;
+        }
+        current = parent;
+    }
+
+    return {};
+}
 }
 
 bool loadEnvFile(const std::string& path)
@@ -90,4 +155,34 @@ bool loadEnvFile(const std::string& path)
     }
 
     return true;
+}
+
+bool loadEnvFileWithFallback(const std::string& fileName)
+{
+    const std::filesystem::path requestedPath(fileName);
+    if (requestedPath.is_absolute())
+    {
+        return loadEnvFile(requestedPath.string());
+    }
+
+    if (loadEnvFile(fileName))
+    {
+        return true;
+    }
+
+    const std::filesystem::path cwdMatch =
+        findFileUpwards(std::filesystem::current_path(), requestedPath);
+    if (!cwdMatch.empty() && loadEnvFile(cwdMatch.string()))
+    {
+        return true;
+    }
+
+    const std::filesystem::path exeDir = executableDirectory();
+    const std::filesystem::path exeMatch = findFileUpwards(exeDir, requestedPath);
+    if (!exeMatch.empty() && exeMatch != cwdMatch && loadEnvFile(exeMatch.string()))
+    {
+        return true;
+    }
+
+    return false;
 }

@@ -14,7 +14,7 @@
 
 int main()
 {
-    loadEnvFile(".env");
+    loadEnvFileWithFallback(".env");
 
     GameManager game;
 
