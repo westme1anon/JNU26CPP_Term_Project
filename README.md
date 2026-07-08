@@ -5,11 +5,12 @@
 ## 环境要求
 
 - Windows
-- Visual Studio 2022 / MSVC
-- CMake 3.16+
 - Python 3
+- 以下二选一
+  - Visual Studio 2022 / MSVC
+  - MSYS2 MinGW-w64 `g++`
 
-## 构建
+## 使用 CMake 构建
 
 配置工程：
 
@@ -30,6 +31,59 @@ Remove-Item -Recurse -Force build
 cmake -S . -B build
 cmake --build build --config Release
 ```
+
+## 使用 g++ 直接编译
+
+适用于 MSYS2 MinGW-w64 环境，例如 `mingw64.exe` 或 `ucrt64.exe` 终端。
+
+```bash
+g++ -std=c++17 -O2 -Iinclude -Isrc \
+  main.cpp \
+  src/AIAssistant.cpp \
+  src/AutoSaveService.cpp \
+  src/BattleSystem.cpp \
+  src/Character.cpp \
+  src/ConsoleUI.cpp \
+  src/Enemy.cpp \
+  src/EnvLoader.cpp \
+  src/GameManager.cpp \
+  src/Inventory.cpp \
+  src/Item.cpp \
+  src/SaveManager.cpp \
+  src/Shop.cpp \
+  src/SimpleJson.cpp \
+  src/Task.cpp \
+  src/TaskSystem.cpp \
+  -o CampusRPG.exe
+```
+
+如果你在 PowerShell 中直接调用 MSYS2 的 `g++`，可以写成：
+
+```powershell
+& "C:\msys64\mingw64\bin\g++.exe" -std=c++17 -O2 -Iinclude -Isrc `
+  main.cpp `
+  src\AIAssistant.cpp `
+  src\AutoSaveService.cpp `
+  src\BattleSystem.cpp `
+  src\Character.cpp `
+  src\ConsoleUI.cpp `
+  src\Enemy.cpp `
+  src\EnvLoader.cpp `
+  src\GameManager.cpp `
+  src\Inventory.cpp `
+  src\Item.cpp `
+  src\SaveManager.cpp `
+  src\Shop.cpp `
+  src\SimpleJson.cpp `
+  src\Task.cpp `
+  src\TaskSystem.cpp `
+  -o CampusRPG.exe
+```
+
+说明：
+
+- 上面的 `C:\msys64\mingw64\bin\g++.exe` 只是示例路径，请改成你本机的实际路径
+- 当前 AI 联网功能走 Python 脚本，不需要再链接 `libcurl`
 
 ## AI 助手
 
@@ -71,4 +125,10 @@ Python 脚本只使用标准库，不需要额外执行 `pip install`。
 
 ```powershell
 .\build\CampusRPG.exe
+```
+
+如果使用 `g++` 直接编译：
+
+```powershell
+.\CampusRPG.exe
 ```
