@@ -4,6 +4,7 @@
 
 #include "Character.h"
 #include "Enemy.h"
+#include "AdventureManager.h"
 
 #include <string>
 #include <vector>
@@ -16,7 +17,7 @@
 
 struct BattleResult
 {
-    bool playerWon = false;
+    BattleOutcome outcome = BattleOutcome::PLAYER_WIN;
     std::string enemyName;
 };
 
@@ -44,8 +45,17 @@ public:
     // 根据下标选择敌人。
     Enemy selectEnemy(int index) const;
 
+    // 获取敌人总数。
+    int enemyCount() const;
+
+    // 根据怪物等级选取合适的敌人。
+    Enemy selectEnemyByLevel(int monsterLevel) const;
+
     // 启动一场完整战斗，返回战斗结果。
     BattleResult startBattle(Character& player);
+
+    // 根据怪物等级和是否为Boss启动一场战斗。
+    BattleResult startBattle(Character& player, int monsterLevel, bool isBoss);
 
     // 计算伤害值。
     // 基础公式：max(1, attack - defense)。

@@ -7,6 +7,7 @@
 #include "Shop.h"
 #include "TaskSystem.h"
 #include "BattleSystem.h"
+#include "AdventureManager.h"
 #include "SaveManager.h"
 #include "AutoSaveService.h"
 #include "AIAssistant.h"
@@ -26,6 +27,7 @@ private:
     Shop shop;
     TaskSystem taskSystem;
     BattleSystem battleSystem;
+    AdventureManager adventureManager;
     SaveManager saveManager;
     AutoSaveService autoSaveService;
     AIAssistant aiAssistant;
@@ -50,6 +52,7 @@ private:
     void shopMenu();
     void taskMenu();
     void battleMenu();
+    void adventureMenu();
     void aiAssistantMenu();
 
     // ---- 任务系统二级菜单 ----
