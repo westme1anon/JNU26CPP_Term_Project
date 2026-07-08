@@ -1,4 +1,4 @@
-﻿#ifndef GAME_CONFIG_H
+#ifndef GAME_CONFIG_H
 #define GAME_CONFIG_H
 
 #include <string>
@@ -18,7 +18,7 @@ namespace GameConfig
     // 数据文件路径
     const std::string SHOP_ITEMS_FILE_PATH = "data/shop_items.txt";
     const std::string TASKS_FILE_PATH = "data/tasks.json";
-    const std::string ENEMIES_FILE_PATH = "data/enemies.txt";
+    const std::string ENEMIES_FILE_PATH = "data/enemies.json";
 
     // 玩家默认属性
     const int DEFAULT_LEVEL = 1;

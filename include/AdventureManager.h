@@ -1,8 +1,10 @@
-﻿// AdventureManager.h
+// AdventureManager.h
 #ifndef ADVENTURE_MANAGER_H
 #define ADVENTURE_MANAGER_H
 
 #include "Character.h"
+#include "Enemy.h"
+#include "EnemyFactory.h"
 #include "Inventory.h"
 
 #include <string>
@@ -61,9 +63,13 @@ private:
     int currentStage;
     int maxStages;
     Loot temporaryBackpack;
+    EnemyFactory enemyFactory;
 
 public:
     AdventureManager();
+
+    // 加载敌人数据（从 JSON）。
+    void loadEnemyData();
 
     // 启动一次完整的冒险流程。
     // 返回最终的冒险状态。
@@ -76,11 +82,11 @@ public:
 
 private:
     // 占位战斗接口。
-    // 当前使用控制台输入（1-胜利/2-逃跑/3-战败）模拟战斗结果。
-    BattleOutcome triggerBattle(int monsterLevel, bool isBoss);
+    // 接收工厂生成的敌人列表，当前使用控制台输入（1-胜利/2-逃跑/3-战败）模拟。
+    BattleOutcome triggerBattle(const std::vector<Enemy>& enemies);
 
-    // 根据怪物等级生成战利品。
-    Loot generateLoot(int monsterLevel);
+    // 根据击败的敌人生成战利品。
+    Loot generateLoot(const std::vector<Enemy>& enemies);
 
     // 结算冒险，根据状态将临时战利品转移到玩家永久背包。
     void settleAdventure(AdventureStatus status, Character& player, Inventory& inventory);

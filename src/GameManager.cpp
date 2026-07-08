@@ -20,6 +20,7 @@ void GameManager::init()
     shop.loadGoods();
     taskSystem.loadTasks();
     battleSystem.loadEnemies();
+    adventureManager.loadEnemyData();
 
     if (!saveManager.loadGame(player, inventory, taskSystem))
     {

@@ -1,0 +1,89 @@
+[
+  {
+    "name": "史莱姆",
+    "hp": 45,
+    "attack": 12,
+    "defense": 3,
+    "spd": 4,
+    "tier": "Minion",
+    "exp": 60,
+    "gold": 30,
+    "loot": [
+      "面包",
+      "药草"
+    ]
+  },
+  {
+    "name": "哥布林",
+    "hp": 80,
+    "attack": 18,
+    "defense": 6,
+    "spd": 6,
+    "tier": "Minion",
+    "exp": 110,
+    "gold": 55,
+    "loot": [
+      "绷带",
+      "铁剑"
+    ]
+  },
+  {
+    "name": "巨龙",
+    "hp": 200,
+    "attack": 30,
+    "defense": 15,
+    "spd": 3,
+    "tier": "Boss",
+    "exp": 300,
+    "gold": 200,
+    "loot": [
+      "治疗药水",
+      "力量戒指",
+      "皮甲"
+    ]
+  },
+  {
+    "name": "黑暗骑士",
+    "hp": 100,
+    "attack": 22,
+    "defense": 10,
+    "spd": 7,
+    "tier": "Elite",
+    "exp": 180,
+    "gold": 100,
+    "loot": [
+      "铁剑",
+      "皮甲"
+    ]
+  },
+  {
+    "name": "游荡魔法师",
+    "hp": 70,
+    "attack": 25,
+    "defense": 5,
+    "spd": 8,
+    "tier": "Elite",
+    "exp": 160,
+    "gold": 90,
+    "loot": [
+      "治疗药水",
+      "力量戒指"
+    ]
+  },
+  {
+    "name": "森林看护者",
+    "hp": 300,
+    "attack": 35,
+    "defense": 20,
+    "spd": 4,
+    "tier": "Boss",
+    "exp": 400,
+    "gold": 300,
+    "loot": [
+      "治疗药水",
+      "力量戒指",
+      "铁剑",
+      "皮甲"
+    ]
+  }
+]
