@@ -1,7 +1,8 @@
-// TaskSystem.cpp
+﻿// TaskSystem.cpp
 #include "TaskSystem.h"
 #include "ConsoleUI.h"
 #include "GameConfig.h"
+#include "SimpleJson.h"
 
 #include <iostream>
 #include <fstream>
@@ -12,14 +13,90 @@ TaskSystem::TaskSystem()
     loadTasks();
 }
 
+// ============================================================
+// JSON 格式任务加载
+// ============================================================
+
 void TaskSystem::loadTasks()
 {
     tasks.clear();
 
-    std::ifstream file(GameConfig::TASKS_FILE_PATH);
+    try
+    {
+        JsonValue root = parseJsonFile(GameConfig::TASKS_FILE_PATH);
+
+        if (!root.has("tasks"))
+        {
+            std::cerr << "[TaskSystem] 警告: JSON 文件中未找到 \"tasks\" 数组。\n";
+            return;
+        }
+
+        const JsonValue& taskArray = root["tasks"];
+        if (taskArray.type != JsonValue::Array)
+        {
+            std::cerr << "[TaskSystem] 警告: \"tasks\" 不是数组。\n";
+            return;
+        }
+
+        for (size_t i = 0; i < taskArray.size(); ++i)
+        {
+            const JsonValue& t = taskArray[i];
+
+            std::string name        = t.has("name")        ? t["name"].asString()        : "未知任务";
+            std::string description = t.has("description") ? t["description"].asString() : "暂无描述";
+            int rewardExp           = t.has("rewardExp")    ? t["rewardExp"].asInt()      : 0;
+            int rewardGold          = t.has("rewardGold")   ? t["rewardGold"].asInt()     : 0;
+
+            std::vector<Objective> objectives;
+
+            if (t.has("objectives"))
+            {
+                const JsonValue& objArray = t["objectives"];
+                if (objArray.type == JsonValue::Array)
+                {
+                    for (size_t j = 0; j < objArray.size(); ++j)
+                    {
+                        const JsonValue& o = objArray[j];
+                        Objective obj;
+                        obj.type        = o.has("type")        ? o["type"].asString()        : "";
+                        obj.target      = o.has("target")      ? o["target"].asString()      : "";
+                        obj.required     = o.has("required")    ? o["required"].asInt()       : 1;
+                        obj.current      = 0;
+                        obj.description = o.has("description") ? o["description"].asString() : "";
+                        objectives.push_back(obj);
+                    }
+                }
+            }
+
+            tasks.emplace_back(name, description, objectives, rewardExp, rewardGold);
+        }
+
+        ConsoleUI::setColor(GameConfig::COLOR_SUCCESS);
+        std::cout << "[TaskSystem] 成功加载 " << tasks.size() << " 个任务（JSON 格式）。\n";
+        ConsoleUI::resetColor();
+    }
+    catch (const std::exception& e)
+    {
+        std::cerr << "[TaskSystem] JSON 解析错误: " << e.what() << "\n";
+
+        // 回退：尝试旧的文本格式
+        std::cerr << "[TaskSystem] 尝试回退到旧格式 tasks.txt ...\n";
+        loadLegacyTasks();
+    }
+}
+
+// ============================================================
+// 旧格式兼容加载（管道分隔）
+// ============================================================
+
+void TaskSystem::loadLegacyTasks()
+{
+    tasks.clear();
+
+    std::ifstream file("data/tasks.txt");
     if (!file.is_open())
     {
-        std::cerr << "警告: 无法打开任务数据文件 " << GameConfig::TASKS_FILE_PATH << "\n";
+        std::cerr << "[TaskSystem] 警告: 无法打开旧格式任务文件 data/tasks.txt\n";
         return;
     }
 
@@ -27,9 +104,7 @@ void TaskSystem::loadTasks()
     while (std::getline(file, line))
     {
         if (line.empty() || line[0] == '#')
-        {
             continue;
-        }
 
         std::stringstream ss(line);
         std::string name, description, condition, rewardExpStr, rewardGoldStr;
@@ -38,14 +113,65 @@ void TaskSystem::loadTasks()
         std::getline(ss, description, '|');
         std::getline(ss, condition, '|');
         std::getline(ss, rewardExpStr, '|');
-        std::getline(ss, rewardGoldStr, '|');
+        std::getline(ss, rewardGoldStr);
 
         int rewardExp = std::stoi(rewardExpStr);
         int rewardGold = std::stoi(rewardGoldStr);
 
-        tasks.emplace_back(name, description, condition, rewardExp, rewardGold);
+        // 旧格式转换为只有一个子目标
+        std::vector<Objective> objectives;
+        Objective obj;
+        obj.type = "manual";
+        obj.target = "";
+        obj.required = 1;
+        obj.current = 0;
+        obj.description = condition;
+        objectives.push_back(obj);
+
+        tasks.emplace_back(name, description, objectives, rewardExp, rewardGold);
     }
 }
+
+// ============================================================
+// 事件消息广播 - 核心新功能
+// ============================================================
+
+int TaskSystem::broadcastMessage(const TaskMessage& msg)
+{
+    int updatedCount = 0;
+
+    for (auto& task : tasks)
+    {
+        if (task.onMessage(msg))
+        {
+            ++updatedCount;
+        }
+    }
+
+    if (updatedCount > 0)
+    {
+        ConsoleUI::setColor(GameConfig::COLOR_TITLE);
+        std::cout << "[TaskSystem] 事件 [" << msg.type;
+        if (!msg.target.empty())
+            std::cout << ":" << msg.target;
+        std::cout << " x" << msg.value << "] 触发了 " << updatedCount << " 个任务进度更新。\n";
+        ConsoleUI::resetColor();
+    }
+
+    return updatedCount;
+}
+
+void TaskSystem::checkAllAutoComplete()
+{
+    for (auto& task : tasks)
+    {
+        task.checkAndAutoComplete();
+    }
+}
+
+// ============================================================
+// 原有接口（保持不变）
+// ============================================================
 
 void TaskSystem::showTasks() const
 {
@@ -56,8 +182,7 @@ void TaskSystem::showTasks() const
     }
 
     ConsoleUI::printLine('-', 60);
-
-    std::cout << "编号  任务名称            状态\n";
+    std::cout << "编号  任务名称            状态      进度\n";
     ConsoleUI::printLine('-', 60);
 
     for (size_t i = 0; i < tasks.size(); ++i)
@@ -87,6 +212,21 @@ void TaskSystem::showTasks() const
             ConsoleUI::resetColor();
             break;
         }
+
+        // 显示进度条
+        const auto& objs = tasks[i].getObjectives();
+        if (!objs.empty() && tasks[i].getStatus() == TaskStatus::Accepted)
+        {
+            int totalRequired = 0;
+            int totalCurrent = 0;
+            for (const auto& o : objs)
+            {
+                totalRequired += o.required;
+                totalCurrent += o.current;
+            }
+            std::cout << "    [" << totalCurrent << "/" << totalRequired << "]";
+        }
+
         std::cout << "\n";
     }
 

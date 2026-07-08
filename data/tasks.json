@@ -1,0 +1,122 @@
+﻿{
+  "tasks": [
+    {
+      "name": "初出茅庐",
+      "description": "击败3只史莱姆，证明你的战斗能力。",
+      "objectives": [
+        {
+          "type": "kill",
+          "target": "史莱姆",
+          "required": 3,
+          "description": "击败史莱姆"
+        }
+      ],
+      "rewardExp": 30,
+      "rewardGold": 20
+    },
+    {
+      "name": "哥布林杀手",
+      "description": "击败5只哥布林，清理校园周边的怪物。",
+      "objectives": [
+        {
+          "type": "kill",
+          "target": "哥布林",
+          "required": 5,
+          "description": "击败哥布林"
+        }
+      ],
+      "rewardExp": 60,
+      "rewardGold": 50
+    },
+    {
+      "name": "药草采集者",
+      "description": "收集5株药草，为校园医务室补充药材。",
+      "objectives": [
+        {
+          "type": "collect",
+          "target": "药草",
+          "required": 5,
+          "description": "收集药草"
+        }
+      ],
+      "rewardExp": 25,
+      "rewardGold": 30
+    },
+    {
+      "name": "装备收集家",
+      "description": "收集2件装备，提升自己的战斗能力。",
+      "objectives": [
+        {
+          "type": "collect",
+          "target": "装备",
+          "required": 2,
+          "description": "获得装备物品"
+        }
+      ],
+      "rewardExp": 40,
+      "rewardGold": 60
+    },
+    {
+      "name": "杂鱼清除者",
+      "description": "击败哥布林和史莱姆各2只，展示你的多面战斗能力。",
+      "objectives": [
+        {
+          "type": "kill",
+          "target": "哥布林",
+          "required": 2,
+          "description": "击败哥布林"
+        },
+        {
+          "type": "kill",
+          "target": "史莱姆",
+          "required": 2,
+          "description": "击败史莱姆"
+        }
+      ],
+      "rewardExp": 80,
+      "rewardGold": 70
+    },
+    {
+      "name": "校园守护者",
+      "description": "击败强大的巨龙，成为校园的守护英雄。",
+      "objectives": [
+        {
+          "type": "kill",
+          "target": "巨龙",
+          "required": 1,
+          "description": "击败巨龙"
+        }
+      ],
+      "rewardExp": 200,
+      "rewardGold": 300
+    },
+    {
+      "name": "财富积累",
+      "description": "积累200金币，证明你的经济头脑。",
+      "objectives": [
+        {
+          "type": "gold",
+          "target": "",
+          "required": 200,
+          "description": "总金币达到200"
+        }
+      ],
+      "rewardExp": 35,
+      "rewardGold": 50
+    },
+    {
+      "name": "身经百战",
+      "description": "赢得5场战斗胜利，积累丰富的战斗经验。",
+      "objectives": [
+        {
+          "type": "battle_win",
+          "target": "",
+          "required": 5,
+          "description": "战斗胜利"
+        }
+      ],
+      "rewardExp": 100,
+      "rewardGold": 80
+    }
+  ]
+}

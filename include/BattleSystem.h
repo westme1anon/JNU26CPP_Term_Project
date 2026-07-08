@@ -1,11 +1,24 @@
-// BattleSystem.h
+﻿// BattleSystem.h
 #ifndef BATTLE_SYSTEM_H
 #define BATTLE_SYSTEM_H
 
 #include "Character.h"
 #include "Enemy.h"
 
+#include <string>
 #include <vector>
+
+// ============================================================
+// BattleResult
+// ------------------------------------------------------------
+// 战斗结果信息，用于驱动任务系统事件。
+// ============================================================
+
+struct BattleResult
+{
+    bool playerWon = false;
+    std::string enemyName;
+};
 
 // ============================================================
 // BattleSystem
@@ -23,7 +36,6 @@ public:
     BattleSystem();
 
     // 加载敌人数据。
-    // 后续可从 data/enemies.txt 读取。
     void loadEnemies();
 
     // 显示敌人列表。
@@ -32,8 +44,8 @@ public:
     // 根据下标选择敌人。
     Enemy selectEnemy(int index) const;
 
-    // 启动一场完整战斗。
-    void startBattle(Character& player);
+    // 启动一场完整战斗，返回战斗结果。
+    BattleResult startBattle(Character& player);
 
     // 计算伤害值。
     // 基础公式：max(1, attack - defense)。

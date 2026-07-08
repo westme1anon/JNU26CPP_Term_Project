@@ -1,4 +1,4 @@
-// GameManager.h
+﻿// GameManager.h
 #ifndef GAME_MANAGER_H
 #define GAME_MANAGER_H
 
@@ -36,7 +36,6 @@ public:
     GameManager();
 
     // 初始化游戏。
-    // 包括控制台设置、读取存档、创建角色、启动自动存档等。
     void init();
 
     // 主循环。
@@ -55,6 +54,9 @@ public:
     void shutdown();
 
 private:
+    // 辅助：发送任务事件消息并检查自动完成
+    void broadcastTaskEvent(const TaskMessage& msg);
+
     // 角色管理菜单。
     void characterMenu();
 
