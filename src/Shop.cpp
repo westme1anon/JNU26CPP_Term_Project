@@ -5,6 +5,7 @@
 #include "PathUtil.h"
 
 #include <iostream>
+#include <iomanip>
 #include <fstream>
 #include <sstream>
 
@@ -64,22 +65,58 @@ void Shop::showGoods() const
         return;
     }
 
-    ConsoleUI::printLine('-', 70);
-    std::cout << "编号  名称                类型       价格      描述\n";
-    ConsoleUI::printLine('-', 70);
+    ConsoleUI::printLine('=', 68);
 
+    // 表头
+    std::cout << std::left
+              << std::setw(6)  << "编号"
+              << std::setw(18) << "名称"
+              << std::setw(8)  << "价格"
+              << std::setw(14) << "效果"
+              << "描述\n";
+    ConsoleUI::printLine('-', 68);
+
+    std::string lastType;
     for (size_t i = 0; i < goods.size(); ++i)
     {
-        std::cout << (i + 1) << "     ";
-        std::cout.width(20);
-        std::cout << std::left << goods[i]->getName();
-        std::cout.width(10);
-        std::cout << std::left << goods[i]->getType();
-        std::cout << goods[i]->getPrice() << " 金币  ";
+        std::string curType = goods[i]->getType();
+
+        // 类型变化时插入分类标题
+        if (curType != lastType)
+        {
+            if (!lastType.empty())
+                ConsoleUI::printLine('-', 68);
+
+            if (curType == "食物")
+                ConsoleUI::setColor(GameConfig::COLOR_SUCCESS);
+            else if (curType == "药品")
+                ConsoleUI::setColor(GameConfig::COLOR_WARNING);
+            else if (curType == "装备")
+                ConsoleUI::setColor(GameConfig::COLOR_TITLE);
+
+            std::cout << "  [" << curType << "]\n";
+            ConsoleUI::resetColor();
+            lastType = curType;
+        }
+
+        // 编号
+        std::cout << std::left << std::setw(6) << (i + 1);
+
+        // 名称
+        std::cout << std::left << std::setw(18) << goods[i]->getName();
+
+        // 价格
+        std::string priceStr = std::to_string(goods[i]->getPrice()) + " 金";
+        std::cout << std::left << std::setw(8) << priceStr;
+
+        // 效果
+        std::cout << std::left << std::setw(14) << goods[i]->getEffectDescription();
+
+        // 描述
         std::cout << goods[i]->getDescription() << "\n";
     }
 
-    ConsoleUI::printLine('-', 70);
+    ConsoleUI::printLine('=', 68);
 }
 
 bool Shop::buyItem(int index, Character& player, Inventory& inventory)

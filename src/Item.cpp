@@ -41,6 +41,11 @@ std::string FoodItem::getType() const
     return "食物";
 }
 
+std::string FoodItem::getEffectDescription() const
+{
+    return "HP+" + std::to_string(recoverHp);
+}
+
 std::unique_ptr<Item> FoodItem::clone() const
 {
     return std::make_unique<FoodItem>(*this);
@@ -61,6 +66,11 @@ void MedicineItem::use(Character& player)
 std::string MedicineItem::getType() const
 {
     return "药品";
+}
+
+std::string MedicineItem::getEffectDescription() const
+{
+    return "HP+" + std::to_string(healAmount);
 }
 
 std::unique_ptr<Item> MedicineItem::clone() const
@@ -94,6 +104,11 @@ void EquipmentItem::use(Character& player)
 std::string EquipmentItem::getType() const
 {
     return "装备";
+}
+
+std::string EquipmentItem::getEffectDescription() const
+{
+    return "ATK+" + std::to_string(attackBonus) + " DEF+" + std::to_string(defenseBonus);
 }
 
 std::unique_ptr<Item> EquipmentItem::clone() const
