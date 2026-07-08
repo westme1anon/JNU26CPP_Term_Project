@@ -1,4 +1,4 @@
-// GameManager.cpp
+﻿// GameManager.cpp
 #include "GameManager.h"
 #include "ConsoleUI.h"
 #include "GameConfig.h"
@@ -21,6 +21,7 @@ void GameManager::init()
     taskSystem.loadTasks();
     battleSystem.loadEnemies();
     adventureManager.loadEnemyData();
+    cheatManager.loadCheats("data/cheats.json");
 
     if (!saveManager.loadGame(player, inventory, taskSystem))
     {
@@ -63,6 +64,7 @@ void GameManager::showMainMenu() const
     menuItems.push_back("5. \xe5\x86\x92\xe9\x99\xa9\xe6\x8c\x91\xe6\x88\x98");
     menuItems.push_back("6. \xe8\x87\xaa\xe7\x94\xb1\xe6\x88\x98\xe6\x96\x97");
     menuItems.push_back("7. AI \xe6\xb8\xb8\xe6\x88\x8f\xe5\x8a\xa9\xe6\x89\x8b");
+    menuItems.push_back("9. 作弊控制台");
     menuItems.push_back("8. \xe6\x89\x8b\xe5\x8a\xa8\xe5\xad\x98\xe6\xa1\xa3");
     menuItems.push_back("0. \xe9\x80\x80\xe5\x87\xba\xe6\xb8\xb8\xe6\x88\x8f");
 
@@ -90,6 +92,7 @@ void GameManager::handleMainMenu(int choice)
     case 5: adventureMenu(); break;
     case 6: battleMenu(); break;
     case 7: aiAssistantMenu(); break;
+    case 9: cheatMenu(); break;
     case 8:
         saveGame();
         std::cout << "\xe6\xb8\xb8\xe6\x88\x8f\xe5\xb7\xb2\xe4\xbf\x9d\xe5\xad\x98\xe3\x80\x82\n";
@@ -429,4 +432,27 @@ void GameManager::aiAssistantMenu()
     aiAssistant.showTips(player);
     std::cout << "\n\xe6\x8e\xa8\xe8\x8d\x90\xe8\xa1\x8c\xe5\x8a\xa8: " << aiAssistant.suggestAction(player, inventory) << "\n";
     ConsoleUI::pause();
+}
+
+void GameManager::cheatMenu()
+{
+    ConsoleUI::clearScreen();
+    ConsoleUI::printTitle("作弊控制台");
+    std::cout << "输入作弊码（如 add_gold 1000），输入 list_cheats 查看可用作弊码，输入 0 返回。\n";
+    ConsoleUI::printLine('-');
+
+    std::string input;
+    while (true)
+    {
+        std::cout << "\n> ";
+        std::getline(std::cin, input);
+
+        if (input.empty())
+            continue;
+
+        if (input == "0")
+            break;
+
+        cheatManager.executeCommand(input, player, shopUnlocked);
+    }
 }

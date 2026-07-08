@@ -1,0 +1,81 @@
+﻿[
+  {
+    "code": "add_gold",
+    "type": "modify_int",
+    "target": "player.gold",
+    "param": "amount",
+    "description": "增加金币数量"
+  },
+  {
+    "code": "add_exp",
+    "type": "modify_int",
+    "target": "player.exp",
+    "param": "amount",
+    "description": "增加经验值"
+  },
+  {
+    "code": "add_attack",
+    "type": "modify_int",
+    "target": "player.attack",
+    "param": "amount",
+    "description": "增加攻击力"
+  },
+  {
+    "code": "add_defense",
+    "type": "modify_int",
+    "target": "player.defense",
+    "param": "amount",
+    "description": "增加防御力"
+  },
+  {
+    "code": "set_level",
+    "type": "set_int",
+    "target": "player.level",
+    "param": "value",
+    "description": "设置玩家等级"
+  },
+  {
+    "code": "set_hp",
+    "type": "set_int",
+    "target": "player.hp",
+    "param": "value",
+    "description": "设置当前生命值"
+  },
+  {
+    "code": "set_max_hp",
+    "type": "set_int",
+    "target": "player.max_hp",
+    "param": "value",
+    "description": "设置最大生命值"
+  },
+  {
+    "code": "full_hp",
+    "type": "call_func",
+    "target": "player.restore_hp",
+    "description": "恢复全部生命值"
+  },
+  {
+    "code": "god",
+    "type": "toggle_bool",
+    "target": "player.invincible",
+    "description": "切换无敌模式（战斗中不受伤害）"
+  },
+  {
+    "code": "max_stats",
+    "type": "call_func",
+    "target": "player.max_stats",
+    "description": "将所有属性设置为最大值"
+  },
+  {
+    "code": "unlock_shop",
+    "type": "toggle_bool",
+    "target": "game.shop_unlocked",
+    "description": "解锁/锁定校园商店"
+  },
+  {
+    "code": "list_cheats",
+    "type": "call_func",
+    "target": "cheat.list",
+    "description": "列出所有可用作弊码"
+  }
+]

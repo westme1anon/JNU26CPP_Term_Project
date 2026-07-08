@@ -1,4 +1,4 @@
-// Character.cpp
+﻿// Character.cpp
 #include "Character.h"
 #include "GameConfig.h"
 #include "ConsoleUI.h"
@@ -8,14 +8,15 @@
 #include <algorithm>
 
 Character::Character()
-    : name("未命名"),
+    : name("\346\234\252\345\221\275\345\220\215"),
       level(GameConfig::DEFAULT_LEVEL),
       hp(GameConfig::DEFAULT_HP),
       maxHp(GameConfig::DEFAULT_HP),
       exp(GameConfig::DEFAULT_EXP),
       gold(GameConfig::DEFAULT_GOLD),
       attack(GameConfig::DEFAULT_ATTACK),
-      defense(GameConfig::DEFAULT_DEFENSE)
+      defense(GameConfig::DEFAULT_DEFENSE),
+      invincible(false)
 {
 }
 
@@ -29,37 +30,35 @@ void Character::create(const std::string& characterName)
     gold = GameConfig::DEFAULT_GOLD;
     attack = GameConfig::DEFAULT_ATTACK;
     defense = GameConfig::DEFAULT_DEFENSE;
+    invincible = false;
 }
 
 void Character::showInfo() const
 {
-    ConsoleUI::printTitle("角色信息");
+    ConsoleUI::printTitle("\350\247\222\350\211\262\344\277\241\346\201\257");
 
-    std::cout << "姓名: " << name << "\n";
-    std::cout << "等级: " << level << "\n";
-    std::cout << "生命值: " << hp << "/" << maxHp << "\n";
-    std::cout << "经验值: " << exp << "\n";
-    std::cout << "金币: " << gold << "\n";
-    std::cout << "攻击力: " << attack << "\n";
-    std::cout << "防御力: " << defense << "\n";
+    std::cout << "\345\247\223\345\220\215: " << name << "\n";
+    std::cout << "\347\255\211\347\272\247: " << level << "\n";
+    std::cout << "\347\224\237\345\221\275\345\200\274: " << hp << "/" << maxHp << "\n";
+    std::cout << "\347\273\217\351\252\214\345\200\274: " << exp << "\n";
+    std::cout << "\351\207\221\345\270\201: " << gold << "\n";
+    std::cout << "\346\224\273\345\207\273\345\212\233: " << attack << "\n";
+    std::cout << "\351\230\262\345\276\241\345\212\233: " << defense << "\n";
 }
 
-// 获得经验值，并在经验足够时自动升级。
 void Character::gainExp(int amount)
 {
     exp += amount;
-    std::cout << "获得 " << amount << " 点经验值！\n";
+    std::cout << "\350\216\267\345\276\227 " << amount << " \347\202\271\347\273\217\351\252\214\345\200\274\357\274\201\n";
     levelUpIfNeeded();
 }
 
-// 获得金币。
 void Character::gainGold(int amount)
 {
     gold += amount;
-    std::cout << "获得 " << amount << " 金币！\n";
+    std::cout << "\350\216\267\345\276\227 " << amount << " \351\207\221\345\270\201\357\274\201\n";
 }
 
-// 消耗金币。返回 true 表示扣除成功。
 bool Character::costGold(int amount)
 {
     if (gold >= amount)
@@ -67,13 +66,17 @@ bool Character::costGold(int amount)
         gold -= amount;
         return true;
     }
-    std::cout << "金币不足！需要 " << amount << " 金币，当前只有 " << gold << " 金币。\n";
+    std::cout << "\351\207\221\345\270\201\344\270\215\350\266\263\357\274\201\351\234\200\350\246\201 " << amount << " \351\207\221\345\270\201\357\274\214\345\275\223\345\211\215\345\217\252\346\234\211 " << gold << " \351\207\221\345\270\201\343\200\202\n";
     return false;
 }
 
-// 角色受到伤害，最低不低于 0。
 void Character::takeDamage(int damage)
 {
+    if (invincible)
+    {
+        std::cout << "\343\200\220\346\227\240\346\225\214\346\250\241\345\274\217\343\200\221\345\205\215\347\226\253\344\272\206 " << damage << " \347\202\271\344\274\244\345\256\263\357\274\201\n";
+        return;
+    }
     hp -= damage;
     if (hp < 0)
     {
@@ -81,7 +84,6 @@ void Character::takeDamage(int damage)
     }
 }
 
-// 恢复生命值，但不超过 maxHp。
 void Character::heal(int amount)
 {
     hp += amount;
@@ -96,11 +98,45 @@ bool Character::isAlive() const
     return hp > 0;
 }
 
-// 检查经验是否满足升级条件，若满足则提升等级并增长属性。
-// 使用 while 循环，因为经验可能一次性跨越多个等级。
+void Character::setLevel(int newLevel)
+{
+    if (newLevel < 1) newLevel = 1;
+    level = newLevel;
+    maxHp = GameConfig::DEFAULT_HP + (level - 1) * 20;
+    attack = GameConfig::DEFAULT_ATTACK + (level - 1) * 5;
+    defense = GameConfig::DEFAULT_DEFENSE + (level - 1) * 2;
+    hp = maxHp;
+}
+
+void Character::setMaxHp(int newMaxHp)
+{
+    if (newMaxHp < 1) newMaxHp = 1;
+    maxHp = newMaxHp;
+    if (hp > maxHp) hp = maxHp;
+}
+
+void Character::maxStats()
+{
+    level = 99;
+    maxHp = 9999;
+    hp = 9999;
+    attack = 999;
+    defense = 999;
+    exp = 0;
+}
+
+bool Character::isInvincible() const
+{
+    return invincible;
+}
+
+void Character::setInvincible(bool value)
+{
+    invincible = value;
+}
+
 void Character::levelUpIfNeeded()
 {
-    // 升级所需经验 = 当前等级 * 100
     while (exp >= level * 100)
     {
         exp -= level * 100;
@@ -108,28 +144,25 @@ void Character::levelUpIfNeeded()
         maxHp += 20;
         attack += 5;
         defense += 2;
-        hp = maxHp;  // 升级后回满生命
+        hp = maxHp;
 
-        std::cout << "★ 升级！你达到了等级 " << level << "！\n";
-        std::cout << "  最大生命 +20 → " << maxHp << "\n";
-        std::cout << "  攻击力   +5  → " << attack << "\n";
-        std::cout << "  防御力   +2  → " << defense << "\n";
+        std::cout << "\342\230\205 \345\215\207\347\272\247\357\274\201\344\275\240\350\276\276\345\210\260\344\272\206\347\255\211\347\272\247 " << level << "\357\274\201\n";
+        std::cout << "  \346\234\200\345\244\247\347\224\237\345\221\275 +20 \342\206\222 " << maxHp << "\n";
+        std::cout << "  \346\224\273\345\207\273\345\212\233   +5  \342\206\222 " << attack << "\n";
+        std::cout << "  \351\230\262\345\276\241\345\212\233   +2  \342\206\222 " << defense << "\n";
     }
 }
 
-// 增加攻击力。
 void Character::addAttack(int value)
 {
     attack += value;
 }
 
-// 增加防御力。
 void Character::addDefense(int value)
 {
     defense += value;
 }
 
-// 将角色数据序列化为字符串，用于保存到文件。
 std::string Character::serialize() const
 {
     std::ostringstream oss;
@@ -141,10 +174,10 @@ std::string Character::serialize() const
     oss << "gold=" << gold << "\n";
     oss << "attack=" << attack << "\n";
     oss << "defense=" << defense << "\n";
+    oss << "invincible=" << (invincible ? 1 : 0) << "\n";
     return oss.str();
 }
 
-// 从字符串解析恢复角色数据。
 void Character::deserialize(const std::string& data)
 {
     std::istringstream iss(data);
@@ -165,6 +198,7 @@ void Character::deserialize(const std::string& data)
         else if (key == "gold")     gold = std::stoi(value);
         else if (key == "attack")   attack = std::stoi(value);
         else if (key == "defense")  defense = std::stoi(value);
+        else if (key == "invincible") invincible = (std::stoi(value) != 0);
     }
 }
 

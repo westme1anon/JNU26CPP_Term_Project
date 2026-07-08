@@ -11,6 +11,7 @@
 #include "SaveManager.h"
 #include "AutoSaveService.h"
 #include "AIAssistant.h"
+#include "CheatManager.h"
 
 // ============================================================
 // GameManager
@@ -31,6 +32,7 @@ private:
     SaveManager saveManager;
     AutoSaveService autoSaveService;
     AIAssistant aiAssistant;
+    CheatManager cheatManager;
 
     bool running;
     bool shopUnlocked;
@@ -54,6 +56,7 @@ private:
     void battleMenu();
     void adventureMenu();
     void aiAssistantMenu();
+    void cheatMenu();
 
     // ---- 任务系统二级菜单 ----
     void taskSubMenu(QuestType type);

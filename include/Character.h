@@ -1,4 +1,4 @@
-#ifndef CHARACTER_H
+﻿#ifndef CHARACTER_H
 #define CHARACTER_H
 
 #include <string>
@@ -21,6 +21,7 @@ private:
     int gold;
     int attack;
     int defense;
+    bool invincible;
 
 public:
     Character();
@@ -48,8 +49,21 @@ public:
     // 恢复生命值，但不超过 maxHp。
     void heal(int amount);
 
+    // 直接设置等级。
+    void setLevel(int newLevel);
+
+    // 直接设置最大生命值。
+    void setMaxHp(int newMaxHp);
+
+    // 将所有属性最大化。
+    void maxStats();
+
     // 判断角色是否存活。
     bool isAlive() const;
+
+    // 无敌状态。
+    bool isInvincible() const;
+    void setInvincible(bool value);
 
     // 检查当前经验是否满足升级条件。
     // 若满足则提升等级并增长属性。
