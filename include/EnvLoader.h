@@ -4,5 +4,6 @@
 #include <string>
 
 bool loadEnvFile(const std::string& path);
+bool loadEnvFileWithFallback(const std::string& fileName);
 
 #endif

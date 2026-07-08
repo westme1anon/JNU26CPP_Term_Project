@@ -102,6 +102,15 @@ DEEPSEEK_API_KEY=your_api_key_here
 
 Python 脚本只使用标准库，不需要额外执行 `pip install`。
 
+程序会按以下顺序查找 `.env` 和 `scripts/ai_helper.py`：
+
+- 当前工作目录
+- 当前工作目录的上层目录
+- 可执行文件所在目录
+- 可执行文件所在目录的上层目录
+
+因此从项目根目录、`build`、`build/Release` 等位置启动时，通常都不需要手动复制 `.env` 或 Python 脚本。
+
 ### 本地回退策略
 
 当出现以下情况时，游戏不会报错退出，而是自动切换到本地建议模式：
