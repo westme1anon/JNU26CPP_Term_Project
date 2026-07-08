@@ -29,49 +29,45 @@ void Inventory::showItems() const
     }
 }
 
-// 使用指定下标的物品。使用后从背包删除。
+// 使用指定下标的物品（0-based 索引）。使用后从背包删除。
 bool Inventory::useItem(int index, Character& player)
 {
-    // 用户输入编号从 1 开始，vector 下标从 0 开始
-    if (index < 1 || index > static_cast<int>(items.size()))
+    if (index < 0 || index >= static_cast<int>(items.size()))
     {
         std::cout << "编号无效！\n";
         return false;
     }
 
-    int realIndex = index - 1;
-    items[realIndex]->use(player);
-    items.erase(items.begin() + realIndex);
+    items[index]->use(player);
+    items.erase(items.begin() + index);
     return true;
 }
 
-// 删除指定下标的物品。
+// 删除指定下标的物品（0-based 索引）。
 bool Inventory::removeItem(int index)
 {
-    if (index < 1 || index > static_cast<int>(items.size()))
+    if (index < 0 || index >= static_cast<int>(items.size()))
     {
         std::cout << "编号无效！\n";
         return false;
     }
 
-    int realIndex = index - 1;
-    items.erase(items.begin() + realIndex);
+    items.erase(items.begin() + index);
     std::cout << "物品已删除。\n";
     return true;
 }
 
-// 将指定物品从背包取出，用于出售。
+// 将指定物品从背包取出（0-based 索引），用于出售。
 std::unique_ptr<Item> Inventory::sellItem(int index)
 {
-    if (index < 1 || index > static_cast<int>(items.size()))
+    if (index < 0 || index >= static_cast<int>(items.size()))
     {
         std::cout << "编号无效！\n";
         return nullptr;
     }
 
-    int realIndex = index - 1;
-    std::unique_ptr<Item> item = std::move(items[realIndex]);
-    items.erase(items.begin() + realIndex);
+    std::unique_ptr<Item> item = std::move(items[index]);
+    items.erase(items.begin() + index);
     return item;
 }
 
@@ -85,13 +81,13 @@ int Inventory::size() const
     return static_cast<int>(items.size());
 }
 
-// 获取指定下标物品的只读指针。
+// 获取指定下标物品的只读指针（0-based 索引）。
 const Item* Inventory::getItem(int index) const
 {
-    if (index < 1 || index > static_cast<int>(items.size()))
+    if (index < 0 || index >= static_cast<int>(items.size()))
     {
         return nullptr;
     }
 
-    return items[index - 1].get();
+    return items[index].get();
 }
