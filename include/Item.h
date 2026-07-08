@@ -32,6 +32,9 @@ public:
     // 获取物品类型名称。
     virtual std::string getType() const = 0;
 
+    // 获取效果描述（例如 "HP+15" 或 "ATK+8 DEF+2"）。
+    virtual std::string getEffectDescription() const = 0;
+
     // 克隆物品对象。
     // 便于商店商品复制到背包中。
     virtual std::unique_ptr<Item> clone() const = 0;
@@ -53,6 +56,7 @@ public:
 
     void use(Character& player) override;
     std::string getType() const override;
+    std::string getEffectDescription() const override;
     std::unique_ptr<Item> clone() const override;
 };
 
@@ -68,6 +72,7 @@ public:
 
     void use(Character& player) override;
     std::string getType() const override;
+    std::string getEffectDescription() const override;
     std::unique_ptr<Item> clone() const override;
 };
 
@@ -90,6 +95,7 @@ public:
 
     void use(Character& player) override;
     std::string getType() const override;
+    std::string getEffectDescription() const override;
     std::unique_ptr<Item> clone() const override;
 };
 
