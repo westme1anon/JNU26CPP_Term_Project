@@ -1,189 +1,262 @@
-// AIAssistant.cpp
 #include "AIAssistant.h"
+
+#include <array>
+#include <cstdio>
+#include <cstdlib>
+#include <filesystem>
+#include <fstream>
 #include <iostream>
 #include <sstream>
-#include <stdexcept>
-#include <cstdlib>
+#include <string>
 
-#if defined(ENABLE_CURL_AI) && defined(__has_include)
-#if __has_include(<curl/curl.h>)
-#define AIASSISTANT_HAS_CURL 1
-#endif
-#endif
-
-#if defined(AIASSISTANT_HAS_CURL)
-#include <curl/curl.h>
-#endif
-
-#if defined(AIASSISTANT_HAS_CURL)
-// 静态回调函数，将 libcurl 接收到的响应数据写入 string 对象
-static size_t WriteCallback(void* contents, size_t size, size_t nmemb, void* userp)
+namespace
 {
-    size_t totalSize = size * nmemb;
-    std::string* str = static_cast<std::string*>(userp);
-    if (str)
-        str->append(static_cast<char*>(contents), totalSize);
-    return totalSize;
+enum class AiFallbackReason
+{
+    None,
+    MissingApiKey,
+    MissingScript,
+    MissingPython,
+    RequestFailed,
+    TempFileFailed
+};
+
+struct AiQueryResult
+{
+    std::string suggestion;
+    AiFallbackReason fallbackReason = AiFallbackReason::None;
+};
+
+std::string trim(const std::string& value)
+{
+    const std::string whitespace = " \t\r\n";
+    const std::size_t start = value.find_first_not_of(whitespace);
+    if (start == std::string::npos)
+    {
+        return "";
+    }
+
+    const std::size_t end = value.find_last_not_of(whitespace);
+    return value.substr(start, end - start + 1);
 }
+
+std::string buildGameState(const Character& player, const Inventory& inventory)
+{
+    std::ostringstream stream;
+    stream << "玩家: " << player.getName() << "\n";
+    stream << "等级: " << player.getLevel() << "\n";
+    stream << "生命值: " << player.getHp() << "/" << player.getMaxHp() << "\n";
+    stream << "金币: " << player.getGold() << "\n";
+    stream << "背包物品数: " << inventory.size() << "\n";
+    stream << "背包是否为空: " << (inventory.isEmpty() ? "是" : "否") << "\n";
+    return stream.str();
+}
+
+std::string runCommandAndCapture(const std::string& command)
+{
+#if defined(_WIN32)
+    FILE* pipe = _popen(command.c_str(), "r");
+#else
+    FILE* pipe = popen(command.c_str(), "r");
+#endif
+    if (!pipe)
+    {
+        return "";
+    }
+
+    std::array<char, 256> buffer{};
+    std::string output;
+    while (fgets(buffer.data(), static_cast<int>(buffer.size()), pipe) != nullptr)
+    {
+        output += buffer.data();
+    }
+
+#if defined(_WIN32)
+    _pclose(pipe);
+#else
+    pclose(pipe);
+#endif
+    return output;
+}
+
+std::string buildLocalSuggestion(
+    const Character& player,
+    const Inventory& inventory,
+    const std::unordered_map<std::string, std::string>& tips
+)
+{
+    if (player.getHp() < player.getMaxHp() / 3)
+    {
+        return tips.at("low_hp");
+    }
+    if (inventory.isEmpty())
+    {
+        return tips.at("empty_inventory");
+    }
+    if (player.getGold() > 200)
+    {
+        return tips.at("high_gold");
+    }
+    if (player.getLevel() < 2)
+    {
+        return tips.at("low_level");
+    }
+    return "【本地建议】当前状态稳定，继续探索校园、完成任务或挑战敌人即可。";
+}
+
+std::string buildFallbackPrefix(AiFallbackReason reason)
+{
+    switch (reason)
+    {
+    case AiFallbackReason::MissingApiKey:
+        return "【本地模式】未检测到 DEEPSEEK_API_KEY，已切换为本地建议：";
+    case AiFallbackReason::MissingScript:
+        return "【本地模式】未找到 AI 脚本，已切换为本地建议：";
+    case AiFallbackReason::MissingPython:
+        return "【本地模式】未检测到 Python 环境，已切换为本地建议：";
+    case AiFallbackReason::RequestFailed:
+        return "【本地模式】联网 AI 请求失败，已切换为本地建议：";
+    case AiFallbackReason::TempFileFailed:
+        return "【本地模式】无法准备 AI 请求数据，已切换为本地建议：";
+    case AiFallbackReason::None:
+    default:
+        return "";
+    }
+}
+
+AiQueryResult queryPythonAssistant(const std::string& gameState)
+{
+#if defined(_WIN32)
+    char* apiKeyBuffer = nullptr;
+    std::size_t apiKeyLength = 0;
+    if (_dupenv_s(&apiKeyBuffer, &apiKeyLength, "DEEPSEEK_API_KEY") != 0 ||
+        apiKeyBuffer == nullptr || apiKeyLength <= 1)
+    {
+        free(apiKeyBuffer);
+        return {"", AiFallbackReason::MissingApiKey};
+    }
+#else
+    const char* apiKeyBuffer = std::getenv("DEEPSEEK_API_KEY");
+    if (!apiKeyBuffer || *apiKeyBuffer == '\0')
+    {
+        return {"", AiFallbackReason::MissingApiKey};
+    }
 #endif
 
-AIAssistant::AIAssistant() {
+    const std::filesystem::path scriptPath = std::filesystem::path("scripts") / "ai_helper.py";
+    if (!std::filesystem::exists(scriptPath))
+    {
+#if defined(_WIN32)
+        free(apiKeyBuffer);
+#endif
+        return {"", AiFallbackReason::MissingScript};
+    }
+
+    const std::filesystem::path inputPath =
+        std::filesystem::temp_directory_path() / "campusrpg_ai_request.txt";
+    {
+        std::ofstream output(inputPath, std::ios::binary);
+        if (!output.is_open())
+        {
+#if defined(_WIN32)
+            free(apiKeyBuffer);
+#endif
+            return {"", AiFallbackReason::TempFileFailed};
+        }
+        output << gameState;
+    }
+
+    const std::string quotedScript = "\"" + scriptPath.string() + "\"";
+    const std::string quotedInput = "\"" + inputPath.string() + "\"";
+
+    const std::string pyLauncherOutput = trim(
+        runCommandAndCapture("py -3 -X utf8 " + quotedScript + " " + quotedInput + " 2>NUL"));
+    if (!pyLauncherOutput.empty())
+    {
+#if defined(_WIN32)
+        free(apiKeyBuffer);
+#endif
+        return {pyLauncherOutput, AiFallbackReason::None};
+    }
+
+    const std::string pythonOutput = trim(
+        runCommandAndCapture("python -X utf8 " + quotedScript + " " + quotedInput + " 2>NUL"));
+#if defined(_WIN32)
+    free(apiKeyBuffer);
+#endif
+    if (!pythonOutput.empty())
+    {
+        return {pythonOutput, AiFallbackReason::None};
+    }
+
+    const std::string pyCheck = trim(runCommandAndCapture("py -3 --version 2>NUL"));
+    const std::string pythonCheck = trim(runCommandAndCapture("python --version 2>NUL"));
+    if (pyCheck.empty() && pythonCheck.empty())
+    {
+        return {"", AiFallbackReason::MissingPython};
+    }
+
+    return {"", AiFallbackReason::RequestFailed};
+}
+}
+
+AIAssistant::AIAssistant()
+{
     initTips();
 }
 
-void AIAssistant::showTips(const Character& player) const {
-    if (player.getHp() < player.getMaxHp() / 3) {
-        // 生命值较低提示使用药品或补充生命
+void AIAssistant::showTips(const Character& player) const
+{
+    if (player.getHp() < player.getMaxHp() / 3)
+    {
         auto it = tips.find("low_hp");
-        if (it != tips.end()) {
+        if (it != tips.end())
+        {
             std::cout << it->second << std::endl;
         }
     }
-    if (player.getGold() > 200) {
-        // 金币较多提示购买装备
+
+    if (player.getGold() > 200)
+    {
         auto it = tips.find("high_gold");
-        if (it != tips.end()) {
+        if (it != tips.end())
+        {
             std::cout << it->second << std::endl;
         }
     }
-    if (player.getLevel() < 2) {
-        // 等级较低提示提升等级
+
+    if (player.getLevel() < 2)
+    {
         auto it = tips.find("low_level");
-        if (it != tips.end()) {
+        if (it != tips.end())
+        {
             std::cout << it->second << std::endl;
         }
     }
 }
 
-std::string AIAssistant::suggestAction(const Character& player, const Inventory& inventory) const {
-    // 构造玩家当前状态的描述字符串
-    std::ostringstream stateStream;
-    stateStream << "玩家" << player.getName()
-                << "，等级" << player.getLevel()
-                << "，生命值" << player.getHp() << "/" << player.getMaxHp()
-                << "，金币" << player.getGold() << "。";
-    if (inventory.isEmpty()) {
-        stateStream << " 背包当前为空。";
-    } else {
-        stateStream << " 背包共有" << inventory.size() << "件物品。";
+std::string AIAssistant::suggestAction(const Character& player, const Inventory& inventory) const
+{
+    const AiQueryResult result = queryPythonAssistant(buildGameState(player, inventory));
+    if (!result.suggestion.empty())
+    {
+        return result.suggestion;
     }
-    std::string gameState = stateStream.str();
 
-    // 检查 DeepSeek API Key 是否存在
-#if defined(AIASSISTANT_HAS_CURL)
-    const char* apiKey = std::getenv("DEEPSEEK_API_KEY");
-    if (apiKey && *apiKey != '\0') {
-        // DeepSeek API 接口配置
-        std::string url = "https://api.deepseek.com/chat/completions";
-        std::string modelName = "deepseek-v4-pro";
-
-        // 构造 DeepSeek API 的系统提示 (System message) 和用户消息 (User message)
-        std::string systemContent =
-            "你是校园RPG游戏 CampusRPG 的AI助手。游戏包含角色成长（玩家通过任务和战斗获取经验提升等级）、"
-            "背包与物品管理（背包可存储食物、药品、装备，道具用于回复生命或提升属性）、校园商店（购买或出售物品）、"
-            "任务系统（接受任务并完成获得奖励）、战斗系统（挑战校园内的敌人获得经验和金币）。"
-            "你的任务是根据游戏规则和玩家当前状态，为玩家提供下一步行动的建议。";
-        std::string userContent =
-            "当前玩家状态：" + gameState +
-            " 请根据上述游戏规则和玩家状态，提供一个简短的下一步行动建议。";
-
-        // 构造 POST 请求的 JSON 请求体
-        std::ostringstream json;
-        json << "{"
-             << "\"model\":\"" << modelName << "\","
-             << "\"messages\":["
-             << "{\"role\":\"system\",\"content\":\"" << systemContent << "\"},"
-             << "{\"role\":\"user\",\"content\":\"" << userContent << "\"}"
-             << "],"
-             << "\"thinking\":{\"type\":\"enabled\"},"
-             << "\"reasoning_effort\":\"high\","
-             << "\"stream\":false"
-             << "}";
-
-        std::string requestBody = json.str();
-
-        // 初始化 libcurl 并设置请求参数
-        curl_global_init(CURL_GLOBAL_DEFAULT);
-        CURL* curl = curl_easy_init();
-        if (curl) {
-            // 设置 HTTP 请求的 URL、POST 方法和请求体
-            curl_easy_setopt(curl, CURLOPT_URL, url.c_str());
-            curl_easy_setopt(curl, CURLOPT_POST, 1L);
-            curl_easy_setopt(curl, CURLOPT_POSTFIELDS, requestBody.c_str());
-
-            // 设置 HTTP 头部，包括内容类型和认证信息
-            struct curl_slist* headers = nullptr;
-            headers = curl_slist_append(headers, "Content-Type: application/json");
-            std::string authHeader = std::string("Authorization: Bearer ") + apiKey;
-            headers = curl_slist_append(headers, authHeader.c_str());
-            curl_easy_setopt(curl, CURLOPT_HTTPHEADER, headers);
-
-            // 设置回调函数以获取响应数据
-            std::string responseData;
-            curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, WriteCallback);
-            curl_easy_setopt(curl, CURLOPT_WRITEDATA, &responseData);
-
-            // 执行 HTTP POST 请求
-            CURLcode res = curl_easy_perform(curl);
-            if (res == CURLE_OK) {
-                long httpStatus = 0;
-                curl_easy_getinfo(curl, CURLINFO_RESPONSE_CODE, &httpStatus);
-                // 请求成功，尝试从 JSON 响应中提取 AI 给出的建议
-                std::string suggestion;
-                size_t contentPos = responseData.find("\"content\"");
-                if (contentPos != std::string::npos) {
-                    // 查找 content 键对应的值的起止位置（假设 DeepSeek 返回的 JSON 兼容 OpenAI API 格式）
-                    size_t start = responseData.find('\"', contentPos + 9);
-                    if (start != std::string::npos) {
-                        size_t end = responseData.find('\"', start + 1);
-                        if (end != std::string::npos && end > start) {
-                            suggestion = responseData.substr(start + 1, end - start - 1);
-                        }
-                    }
-                }
-                if (!suggestion.empty()) {
-                    // 清理并返回AI建议
-                    curl_easy_cleanup(curl);
-                    curl_slist_free_all(headers);
-                    curl_global_cleanup();
-                    return suggestion;
-                }
-                std::cerr << "[AI助手] DeepSeek API 返回了 HTTP " << httpStatus
-                          << "，但未能从响应中解析出建议。" << std::endl;
-            } else {
-                std::cerr << "[AI助手] DeepSeek API调用失败，错误码: " << res
-                          << "，错误信息: " << curl_easy_strerror(res) << std::endl;
-            }
-            // 清理CURL资源
-            curl_easy_cleanup(curl);
-            curl_slist_free_all(headers);
-            curl_global_cleanup();
-        }
+    const std::string localSuggestion = buildLocalSuggestion(player, inventory, tips);
+    const std::string prefix = buildFallbackPrefix(result.fallbackReason);
+    if (!prefix.empty())
+    {
+        return prefix + localSuggestion;
     }
-#endif
-
-    // 如果没有可用的AI服务或API调用失败，则使用规则系统提供默认建议
-    if (player.getHp() < player.getMaxHp() / 3) {
-        return tips.at("low_hp");
-    }
-    if (inventory.isEmpty()) {
-        return tips.at("empty_inventory");
-    }
-    if (player.getGold() > 200) {
-        return tips.at("high_gold");
-    }
-    if (player.getLevel() < 2) {
-        return tips.at("low_level");
-    }
-    // 默认通用提示
-    return "暂无特别建议，继续探索校园提升自己吧。";
+    return localSuggestion;
 }
 
-void AIAssistant::initTips() {
+void AIAssistant::initTips()
+{
     tips.clear();
-    // 初始化规则提示
-    tips["low_hp"] = "【提示】你的生命值较低，建议使用药品回复或前往商店购买药品。";
-    tips["high_gold"] = "【提示】你持有大量金币，可以去校园商店购买更强力的装备。";
-    tips["low_level"] = "【提示】当前等级较低，可以尝试完成任务或挑战低等级敌人来升级。";
-    tips["empty_inventory"] = "【提示】你的背包为空，去校园商店购买一些道具吧。";
+    tips["low_hp"] = "【本地建议】你的生命值偏低，建议先使用恢复类道具，或去商店补充药品。";
+    tips["high_gold"] = "【本地建议】你当前金币较多，可以优先去商店更新更强的装备。";
+    tips["low_level"] = "【本地建议】你当前等级偏低，建议先完成任务或挑战较弱的敌人。";
+    tips["empty_inventory"] = "【本地建议】你的背包是空的，建议先去商店购买基础道具。";
 }

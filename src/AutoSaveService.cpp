@@ -1,7 +1,9 @@
 // AutoSaveService.cpp
 #include "AutoSaveService.h"
-#include "GameManager.h"
+
 #include "GameConfig.h"
+#include "GameManager.h"
+
 #include <chrono>
 #include <thread>
 
@@ -18,19 +20,20 @@ AutoSaveService::~AutoSaveService()
 
 void AutoSaveService::start(GameManager* manager)
 {
-    // 1. 如果已在运行则直接返回
     if (running)
+    {
         return;
+    }
+
     running = true;
-    // 2. 创建后台线程执行自动存档循环
     worker = std::thread(&AutoSaveService::autoSaveLoop, this, manager);
 }
 
 void AutoSaveService::stop()
 {
-    // 1. 设置退出标志
     running = false;
-    // 2. 等待线程完成
+    wakeSignal.notify_all();
+
     if (worker.joinable())
     {
         worker.join();
@@ -39,11 +42,22 @@ void AutoSaveService::stop()
 
 void AutoSaveService::autoSaveLoop(GameManager* manager)
 {
-    // 循环定时保存游戏
     while (running)
     {
-        std::this_thread::sleep_for(std::chrono::seconds(intervalSeconds));
-        if (!running) break;
+        std::unique_lock<std::mutex> lock(wakeMutex);
+        wakeSignal.wait_for(
+            lock,
+            std::chrono::seconds(intervalSeconds),
+            [this]() { return !running.load(); }
+        );
+
+        if (!running)
+        {
+            break;
+        }
+
+        lock.unlock();
+
         if (manager)
         {
             manager->saveGame();

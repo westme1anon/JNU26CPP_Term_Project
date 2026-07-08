@@ -2,8 +2,10 @@
 #ifndef AUTO_SAVE_SERVICE_H
 #define AUTO_SAVE_SERVICE_H
 
-#include <thread>
 #include <atomic>
+#include <condition_variable>
+#include <mutex>
+#include <thread>
 
 class GameManager;
 
@@ -19,6 +21,8 @@ class AutoSaveService
 private:
     std::thread worker;
     std::atomic<bool> running;
+    std::condition_variable wakeSignal;
+    std::mutex wakeMutex;
     int intervalSeconds;
 
     // 自动存档循环。

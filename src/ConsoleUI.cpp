@@ -5,6 +5,9 @@
 #include <limits>
 
 #ifdef _WIN32
+#ifndef NOMINMAX
+#define NOMINMAX
+#endif
 #include <windows.h>
 #endif
 
@@ -44,7 +47,7 @@ void ConsoleUI::pause()
 void ConsoleUI::setColor(int color)
 {
 #ifdef _WIN32
-    SetConsoleTextAttribute(GetStdHandle(STD_OUTPUT_HANDLE), color);
+    SetConsoleTextAttribute(GetStdHandle(STD_OUTPUT_HANDLE), static_cast<WORD>(color));
 #else
     (void)color;
 #endif
