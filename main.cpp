@@ -1,7 +1,7 @@
 // main.cpp
 
-#include "EnvLoader.h"
-#include "GameManager.h"
+#include "include/EnvLoader.h"
+#include "include/GameManager.h"
 
 #include <iostream>
 

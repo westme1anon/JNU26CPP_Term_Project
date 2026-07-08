@@ -3,10 +3,12 @@
 #include "ConsoleUI.h"
 #include "GameConfig.h"
 #include "SimpleJson.h"
+#include "PathUtil.h"
 
 #include <iostream>
 #include <fstream>
 #include <sstream>
+#include <filesystem>
 
 TaskSystem::TaskSystem()
 {
@@ -21,20 +23,22 @@ void TaskSystem::loadTasks()
 {
     tasks.clear();
 
+    std::cout << "[TaskSystem] 正在加载任务数据...\n";
+
     try
     {
         JsonValue root = parseJsonFile(GameConfig::TASKS_FILE_PATH);
 
         if (!root.has("tasks"))
         {
-            std::cerr << "[TaskSystem] 警告: JSON 文件中未找到 \"tasks\" 数组。\n";
+            std::cout << "[TaskSystem] 警告: JSON 文件中未找到 \"tasks\" 数组。\n";
             return;
         }
 
         const JsonValue& taskArray = root["tasks"];
         if (taskArray.type != JsonValue::Array)
         {
-            std::cerr << "[TaskSystem] 警告: \"tasks\" 不是数组。\n";
+            std::cout << "[TaskSystem] 警告: \"tasks\" 不是数组。\n";
             return;
         }
 
@@ -77,10 +81,8 @@ void TaskSystem::loadTasks()
     }
     catch (const std::exception& e)
     {
-        std::cerr << "[TaskSystem] JSON 解析错误: " << e.what() << "\n";
-
-        // 回退：尝试旧的文本格式
-        std::cerr << "[TaskSystem] 尝试回退到旧格式 tasks.txt ...\n";
+        std::cout << "[TaskSystem] JSON 解析错误: " << e.what() << "\n";
+        std::cout << "[TaskSystem] 尝试回退到旧格式 tasks.txt ...\n";
         loadLegacyTasks();
     }
 }
@@ -93,10 +95,15 @@ void TaskSystem::loadLegacyTasks()
 {
     tasks.clear();
 
-    std::ifstream file("data/tasks.txt");
+    std::string resolved = PathUtil::resolvePath("data/tasks.txt");
+    if (resolved.empty()) resolved = "data/tasks.txt";
+
+    std::cout << "[TaskSystem] 尝试加载旧格式: " << resolved << "\n";
+
+    std::ifstream file(resolved);
     if (!file.is_open())
     {
-        std::cerr << "[TaskSystem] 警告: 无法打开旧格式任务文件 data/tasks.txt\n";
+        std::cout << "[TaskSystem] 警告: 无法打开旧格式任务文件 " << resolved << "\n";
         return;
     }
 
@@ -118,7 +125,6 @@ void TaskSystem::loadLegacyTasks()
         int rewardExp = std::stoi(rewardExpStr);
         int rewardGold = std::stoi(rewardGoldStr);
 
-        // 旧格式转换为只有一个子目标
         std::vector<Objective> objectives;
         Objective obj;
         obj.type = "manual";
@@ -130,10 +136,12 @@ void TaskSystem::loadLegacyTasks()
 
         tasks.emplace_back(name, description, objectives, rewardExp, rewardGold);
     }
+
+    std::cout << "[TaskSystem] 旧格式加载了 " << tasks.size() << " 个任务。\n";
 }
 
 // ============================================================
-// 事件消息广播 - 核心新功能
+// 事件消息广播
 // ============================================================
 
 int TaskSystem::broadcastMessage(const TaskMessage& msg)
@@ -170,7 +178,7 @@ void TaskSystem::checkAllAutoComplete()
 }
 
 // ============================================================
-// 原有接口（保持不变）
+// 原有接口
 // ============================================================
 
 void TaskSystem::showTasks() const
@@ -213,7 +221,6 @@ void TaskSystem::showTasks() const
             break;
         }
 
-        // 显示进度条
         const auto& objs = tasks[i].getObjectives();
         if (!objs.empty() && tasks[i].getStatus() == TaskStatus::Accepted)
         {

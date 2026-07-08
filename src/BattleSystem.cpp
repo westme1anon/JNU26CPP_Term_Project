@@ -2,6 +2,7 @@
 #include "BattleSystem.h"
 #include "ConsoleUI.h"
 #include "GameConfig.h"
+#include "PathUtil.h"
 
 #include <algorithm>
 #include <fstream>
@@ -14,11 +15,7 @@ namespace
 {
 std::string makeHpBar(int hp, int maxHp, int width = 24)
 {
-    if (maxHp <= 0)
-    {
-        return "[无效]";
-    }
-
+    if (maxHp <= 0) return "[无效]";
     const int safeHp = std::max(0, std::min(hp, maxHp));
     const int filled = safeHp * width / maxHp;
     return "[" + std::string(filled, '#') + std::string(width - filled, '-') + "]";
@@ -34,34 +31,25 @@ std::vector<Enemy> defaultEnemies()
 }
 }
 
-BattleSystem::BattleSystem()
-{
-    loadEnemies();
-}
+BattleSystem::BattleSystem() { loadEnemies(); }
 
 void BattleSystem::loadEnemies()
 {
     enemies.clear();
 
-    std::ifstream input(GameConfig::ENEMIES_FILE_PATH);
+    std::string resolved = PathUtil::resolvePath(GameConfig::ENEMIES_FILE_PATH);
+    if (resolved.empty()) resolved = GameConfig::ENEMIES_FILE_PATH;
+
+    std::ifstream input(resolved);
     if (input)
     {
         std::string line;
         while (std::getline(input, line))
         {
-            if (line.empty())
-            {
-                continue;
-            }
+            if (line.empty()) continue;
 
             std::stringstream ss(line);
-            std::string name;
-            std::string hpText;
-            std::string attackText;
-            std::string defenseText;
-            std::string expText;
-            std::string goldText;
-
+            std::string name, hpText, attackText, defenseText, expText, goldText;
             if (std::getline(ss, name, ',') &&
                 std::getline(ss, hpText, ',') &&
                 std::getline(ss, attackText, ',') &&
@@ -69,22 +57,15 @@ void BattleSystem::loadEnemies()
                 std::getline(ss, expText, ',') &&
                 std::getline(ss, goldText, ','))
             {
-                enemies.emplace_back(
-                    name,
-                    std::stoi(hpText),
-                    std::stoi(attackText),
-                    std::stoi(defenseText),
-                    std::stoi(expText),
-                    std::stoi(goldText)
-                );
+                enemies.emplace_back(name,
+                    std::stoi(hpText), std::stoi(attackText), std::stoi(defenseText),
+                    std::stoi(expText), std::stoi(goldText));
             }
         }
     }
 
     if (enemies.empty())
-    {
         enemies = defaultEnemies();
-    }
 }
 
 void BattleSystem::showEnemyList() const
@@ -100,10 +81,7 @@ void BattleSystem::showEnemyList() const
 Enemy BattleSystem::selectEnemy(int index) const
 {
     if (index < 0 || index >= static_cast<int>(enemies.size()))
-    {
         return Enemy();
-    }
-
     return enemies[static_cast<std::size_t>(index)];
 }
 
@@ -116,10 +94,7 @@ BattleResult BattleSystem::startBattle(Character& player)
     showEnemyList();
 
     const int choice = ConsoleUI::readInt("选择敌人(0 返回): ");
-    if (choice == 0)
-    {
-        return result;
-    }
+    if (choice == 0) return result;
 
     if (choice < 1 || choice > static_cast<int>(enemies.size()))
     {
@@ -145,20 +120,14 @@ BattleResult BattleSystem::startBattle(Character& player)
                   << " " << makeHpBar(enemy.getHp(), enemyMaxHp) << "\n\n";
 
         const int confirm = ConsoleUI::readInt("输入 1 发起攻击: ");
-        if (confirm != 1)
-        {
-            continue;
-        }
+        if (confirm != 1) continue;
 
         const int playerDamage = calculateDamage(player.getAttack(), enemy.getDefense());
         enemy.takeDamage(playerDamage);
         std::cout << player.getName() << " 对 " << enemy.getName()
                   << " 造成了 " << playerDamage << " 点伤害。\n";
 
-        if (!enemy.isAlive())
-        {
-            break;
-        }
+        if (!enemy.isAlive()) break;
 
         const int enemyDamage = calculateDamage(enemy.getAttack(), player.getDefense());
         player.takeDamage(enemyDamage);
@@ -171,7 +140,6 @@ BattleResult BattleSystem::startBattle(Character& player)
     if (player.isAlive())
     {
         result.playerWon = true;
-
         ConsoleUI::setColor(GameConfig::COLOR_SUCCESS);
         std::cout << "战斗胜利！你击败了 " << enemy.getName() << "。\n";
         ConsoleUI::resetColor();
@@ -181,18 +149,12 @@ BattleResult BattleSystem::startBattle(Character& player)
     else
     {
         ConsoleUI::setColor(GameConfig::COLOR_ERROR);
-        std::cout << "战斗失败。" << player.getName() << " 被 " << enemy.getName()
-                  << " 击倒了。\n";
+        std::cout << "战斗失败。" << player.getName() << " 被 " << enemy.getName() << " 击倒了。\n";
         ConsoleUI::resetColor();
-
         const int fallbackHp = std::max(1, player.getMaxHp() / 4);
         player.heal(fallbackHp);
-
         if (playerStartHp > 0 && player.getHp() == fallbackHp)
-        {
-            std::cout << "战斗后恢复了 " << fallbackHp
-                      << " 点生命值，冒险可以继续。\n";
-        }
+            std::cout << "战斗后恢复了 " << fallbackHp << " 点生命值，冒险可以继续。\n";
     }
 
     ConsoleUI::pause();

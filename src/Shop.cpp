@@ -1,7 +1,8 @@
-// Shop.cpp
+﻿// Shop.cpp
 #include "Shop.h"
 #include "ConsoleUI.h"
 #include "GameConfig.h"
+#include "PathUtil.h"
 
 #include <iostream>
 #include <fstream>
@@ -16,7 +17,10 @@ void Shop::loadGoods()
 {
     goods.clear();
 
-    std::ifstream file(GameConfig::SHOP_ITEMS_FILE_PATH);
+    std::string resolved = PathUtil::resolvePath(GameConfig::SHOP_ITEMS_FILE_PATH);
+    if (resolved.empty()) resolved = GameConfig::SHOP_ITEMS_FILE_PATH;
+
+    std::ifstream file(resolved);
     if (!file.is_open())
     {
         std::cerr << "警告: 无法打开商店数据文件 " << GameConfig::SHOP_ITEMS_FILE_PATH << "\n";
@@ -27,9 +31,7 @@ void Shop::loadGoods()
     while (std::getline(file, line))
     {
         if (line.empty() || line[0] == '#')
-        {
             continue;
-        }
 
         std::stringstream ss(line);
         std::string type, name, description, priceStr, value1Str, value2Str;
@@ -46,17 +48,11 @@ void Shop::loadGoods()
         int value2 = std::stoi(value2Str);
 
         if (type == "Food")
-        {
             goods.push_back(std::make_unique<FoodItem>(name, description, price, value1));
-        }
         else if (type == "Medicine")
-        {
             goods.push_back(std::make_unique<MedicineItem>(name, description, price, value1));
-        }
         else if (type == "Equipment")
-        {
             goods.push_back(std::make_unique<EquipmentItem>(name, description, price, value1, value2));
-        }
     }
 }
 
@@ -69,8 +65,6 @@ void Shop::showGoods() const
     }
 
     ConsoleUI::printLine('-', 70);
-
-    // 表头
     std::cout << "编号  名称                类型       价格      描述\n";
     ConsoleUI::printLine('-', 70);
 
@@ -136,18 +130,11 @@ bool Shop::sellItem(int index, Character& player, Inventory& inventory)
     }
 
     const Item* item = inventory.getItem(index);
-    if (item == nullptr)
-    {
-        return false;
-    }
+    if (item == nullptr) return false;
 
     int sellPrice = item->getPrice() / 2;
-
     std::unique_ptr<Item> removed = inventory.sellItem(index);
-    if (removed == nullptr)
-    {
-        return false;
-    }
+    if (removed == nullptr) return false;
 
     player.gainGold(sellPrice);
 

@@ -1,10 +1,12 @@
 ﻿// SimpleJson.cpp
 #include "SimpleJson.h"
+#include "PathUtil.h"
 
 #include <fstream>
 #include <sstream>
 #include <cctype>
 #include <stdexcept>
+#include <iostream>
 
 // ============================================================
 // 内部：简易递归下降 JSON 解析器
@@ -16,7 +18,10 @@ class Parser
 {
 public:
     explicit Parser(const std::string& source)
-        : src(source), pos(0) {}
+        : src(source), pos(0)
+    {
+        skipBOM();
+    }
 
     JsonValue parseValue()
     {
@@ -34,12 +39,23 @@ public:
         if (c == 't') { expectLiteral("true");  JsonValue v; v.type = JsonValue::Integer; v.intValue = 1; return v; }
         if (c == 'f') { expectLiteral("false"); JsonValue v; v.type = JsonValue::Integer; v.intValue = 0; return v; }
 
-        throw std::runtime_error(std::string("Unexpected character: ") + c);
+        throw std::runtime_error(std::string("Unexpected character: '") + c + "' (code " + std::to_string(static_cast<int>(static_cast<unsigned char>(c))) + ") at position " + std::to_string(pos));
     }
 
 private:
     const std::string& src;
     size_t pos;
+
+    void skipBOM()
+    {
+        if (pos + 3 <= src.size() &&
+            static_cast<unsigned char>(src[pos + 0]) == 0xEF &&
+            static_cast<unsigned char>(src[pos + 1]) == 0xBB &&
+            static_cast<unsigned char>(src[pos + 2]) == 0xBF)
+        {
+            pos += 3;
+        }
+    }
 
     void skipWhitespace()
     {
@@ -52,7 +68,7 @@ private:
     {
         skipWhitespace();
         if (pos >= src.size() || src[pos] != expected)
-            throw std::runtime_error(std::string("Expected '") + expected + "'");
+            throw std::runtime_error(std::string("Expected '") + expected + "' at position " + std::to_string(pos));
         ++pos;
     }
 
@@ -189,10 +205,24 @@ JsonValue parseJson(const std::string& source)
 
 JsonValue parseJsonFile(const std::string& filepath)
 {
-    std::ifstream file(filepath);
+    std::string resolved = PathUtil::resolvePath(filepath);
+    if (resolved.empty())
+    {
+        resolved = filepath;
+    }
+    else
+    {
+        std::cout << "[SimpleJson] 解析路径: " << filepath << " -> " << resolved << "\n";
+    }
+
+    std::ifstream file(resolved);
     if (!file.is_open())
-        throw std::runtime_error("Cannot open JSON file: " + filepath);
+        throw std::runtime_error("Cannot open JSON file: " + filepath + " (resolved: " + resolved + ")");
+
     std::stringstream buffer;
     buffer << file.rdbuf();
-    return parseJson(buffer.str());
+    std::string content = buffer.str();
+    std::cout << "[SimpleJson] 读取到 " << content.size() << " 字节\n";
+    return parseJson(content);
 }
+
