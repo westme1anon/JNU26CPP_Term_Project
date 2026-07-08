@@ -1,4 +1,4 @@
-// BattleSystem.cpp
+﻿// BattleSystem.cpp
 #include "BattleSystem.h"
 #include "ConsoleUI.h"
 #include "GameConfig.h"
@@ -27,9 +27,9 @@ std::string makeHpBar(int hp, int maxHp, int width = 24)
 std::vector<Enemy> defaultEnemies()
 {
     return {
-        Enemy("作业怪", 45, 12, 3, 60, 30),
-        Enemy("社团挑战者", 80, 18, 6, 110, 55),
-        Enemy("考试魔王", 140, 26, 10, 180, 100)
+        Enemy("史莱姆", 45, 12, 3, 60, 30),
+        Enemy("哥布林", 80, 18, 6, 110, 55),
+        Enemy("巨龙", 200, 30, 15, 300, 200)
     };
 }
 }
@@ -107,15 +107,18 @@ Enemy BattleSystem::selectEnemy(int index) const
     return enemies[static_cast<std::size_t>(index)];
 }
 
-void BattleSystem::startBattle(Character& player)
+BattleResult BattleSystem::startBattle(Character& player)
 {
+    BattleResult result;
+    result.playerWon = false;
+
     ConsoleUI::clearScreen();
     showEnemyList();
 
-    const int choice = ConsoleUI::readInt("请选择敌人（0 返回）: ");
+    const int choice = ConsoleUI::readInt("选择敌人(0 返回): ");
     if (choice == 0)
     {
-        return;
+        return result;
     }
 
     if (choice < 1 || choice > static_cast<int>(enemies.size()))
@@ -124,10 +127,11 @@ void BattleSystem::startBattle(Character& player)
         std::cout << "敌人选择无效。\n";
         ConsoleUI::resetColor();
         ConsoleUI::pause();
-        return;
+        return result;
     }
 
     Enemy enemy = selectEnemy(choice - 1);
+    result.enemyName = enemy.getName();
     const int enemyMaxHp = enemy.getHp();
     const int playerStartHp = player.getHp();
 
@@ -166,6 +170,8 @@ void BattleSystem::startBattle(Character& player)
 
     if (player.isAlive())
     {
+        result.playerWon = true;
+
         ConsoleUI::setColor(GameConfig::COLOR_SUCCESS);
         std::cout << "战斗胜利！你击败了 " << enemy.getName() << "。\n";
         ConsoleUI::resetColor();
@@ -190,6 +196,7 @@ void BattleSystem::startBattle(Character& player)
     }
 
     ConsoleUI::pause();
+    return result;
 }
 
 int BattleSystem::calculateDamage(int attack, int defense) const

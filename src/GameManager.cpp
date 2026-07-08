@@ -1,4 +1,4 @@
-// GameManager.cpp
+﻿// GameManager.cpp
 #include "GameManager.h"
 #include "ConsoleUI.h"
 
@@ -16,10 +16,12 @@ void GameManager::init()
     ConsoleUI::setupConsole();
     ConsoleUI::clearScreen();
     ConsoleUI::printTitle("校园 RPG 冒险游戏");
+
     // 2. 预加载商店、任务和敌人数据
     shop.loadGoods();
     taskSystem.loadTasks();
     battleSystem.loadEnemies();
+
     // 3. 尝试读取存档；若无存档则创建新的角色
     if (!saveManager.loadGame(player, inventory, taskSystem))
     {
@@ -28,6 +30,7 @@ void GameManager::init()
         std::getline(std::cin, name);
         player.create(name);
     }
+
     // 4. 启动自动存档线程
     autoSaveService.start(this);
 }
@@ -97,17 +100,32 @@ void GameManager::handleMainMenu(int choice)
 
 bool GameManager::saveGame()
 {
-    // 调用 SaveManager 保存当前游戏状态
     return saveManager.saveGame(player, inventory, taskSystem);
 }
 
 void GameManager::shutdown()
 {
-    // 停止自动存档线程，保存游戏并退出
     autoSaveService.stop();
     saveGame();
     running = false;
 }
+
+// ============================================================
+// 辅助：发送任务消息并检查自动完成
+// ============================================================
+
+void GameManager::broadcastTaskEvent(const TaskMessage& msg)
+{
+    int updated = taskSystem.broadcastMessage(msg);
+    if (updated > 0)
+    {
+        taskSystem.checkAllAutoComplete();
+    }
+}
+
+// ============================================================
+// 各菜单实现
+// ============================================================
 
 void GameManager::characterMenu()
 {
@@ -137,7 +155,6 @@ void GameManager::inventoryMenu()
         {
         case 1:
         {
-            // 使用物品
             int idx = ConsoleUI::readInt("选择要使用的物品编号: ");
             idx -= 1;
             if (idx >= 0 && idx < inventory.size())
@@ -160,7 +177,6 @@ void GameManager::inventoryMenu()
         }
         case 2:
         {
-            // 丢弃物品（出售物品获得一半价格）
             int idx = ConsoleUI::readInt("选择要丢弃的物品编号: ");
             idx -= 1;
             if (idx >= 0 && idx < inventory.size())
@@ -171,6 +187,9 @@ void GameManager::inventoryMenu()
                     int goldGain = soldItem->getPrice() / 2;
                     player.gainGold(goldGain);
                     std::cout << "已出售 " << soldItem->getName() << "，获得 " << goldGain << " 金币。\n";
+
+                    // 任务事件：金币变化
+                    broadcastTaskEvent({"gold", "", player.getGold()});
                 }
                 else
                 {
@@ -209,12 +228,14 @@ void GameManager::shopMenu()
         {
         case 1:
         {
-            // 购买商品
             int idx = ConsoleUI::readInt("选择要购买的商品编号: ");
             idx -= 1;
             if (shop.buyItem(idx, player, inventory))
             {
                 std::cout << "购买成功！\n";
+
+                // 任务事件：收集物品
+                broadcastTaskEvent({"collect", "装备", 1});
             }
             else
             {
@@ -225,7 +246,6 @@ void GameManager::shopMenu()
         }
         case 2:
         {
-            // 出售物品
             if (inventory.isEmpty())
             {
                 std::cout << "你的背包里没有可出售的物品。\n";
@@ -243,6 +263,9 @@ void GameManager::shopMenu()
                         int goldGain = soldItem->getPrice() / 2;
                         player.gainGold(goldGain);
                         std::cout << "已出售 " << soldItem->getName() << "，获得 " << goldGain << " 金币。\n";
+
+                        // 任务事件：金币变化
+                        broadcastTaskEvent({"gold", "", player.getGold()});
                     }
                     else
                     {
@@ -274,14 +297,22 @@ void GameManager::taskMenu()
         ConsoleUI::clearScreen();
         ConsoleUI::printTitle("任务列表");
         taskSystem.showTasks();
-        std::cout << "\n1. 接受任务\n";
-        std::cout << "2. 完成任务\n";
+        std::cout << "\n1. 查看任务详情\n";
+        std::cout << "2. 接受任务\n";
         std::cout << "3. 领取奖励\n";
         std::cout << "0. 返回上一级\n";
         int choice = ConsoleUI::readInt("请选择操作: ");
         switch (choice)
         {
         case 1:
+        {
+            int idx = ConsoleUI::readInt("输入要查看的任务编号: ");
+            idx -= 1;
+            taskSystem.showTaskDetail(idx);
+            ConsoleUI::pause();
+            break;
+        }
+        case 2:
         {
             int idx = ConsoleUI::readInt("输入要接受的任务编号: ");
             idx -= 1;
@@ -292,21 +323,6 @@ void GameManager::taskMenu()
             else
             {
                 std::cout << "无法接受该任务。\n";
-            }
-            ConsoleUI::pause();
-            break;
-        }
-        case 2:
-        {
-            int idx = ConsoleUI::readInt("输入要标记完成的任务编号: ");
-            idx -= 1;
-            if (taskSystem.completeTask(idx))
-            {
-                std::cout << "任务已标记为完成！\n";
-            }
-            else
-            {
-                std::cout << "无法完成该任务。\n";
             }
             ConsoleUI::pause();
             break;
@@ -338,7 +354,19 @@ void GameManager::taskMenu()
 
 void GameManager::battleMenu()
 {
-    battleSystem.startBattle(player);
+    BattleResult result = battleSystem.startBattle(player);
+
+    if (result.playerWon)
+    {
+        // 任务事件：击败敌人
+        broadcastTaskEvent({"kill", result.enemyName, 1});
+
+        // 任务事件：战斗胜利次数
+        broadcastTaskEvent({"battle_win", "", 1});
+
+        // 任务事件：金币变化（战斗奖励金币）
+        broadcastTaskEvent({"gold", "", player.getGold()});
+    }
 }
 
 void GameManager::aiAssistantMenu()
