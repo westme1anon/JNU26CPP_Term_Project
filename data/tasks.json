@@ -1,8 +1,52 @@
-{
+﻿{
   "tasks": [
     {
+      "questType": "main",
+      "questId": "q_main001",
+      "name": "认识新世界",
+      "description": "欢迎来到校园冒险世界！进行一场战斗，证明你的勇气。",
+      "minLevel": 1,
+      "defaultAccepted": 1,
+      "visible": 1,
+      "onCompleteUnlockShop": 1,
+      "objectives": [
+        {
+          "type": "battle_win",
+          "target": "",
+          "required": 1,
+          "description": "进行一场战斗"
+        }
+      ],
+      "rewardExp": 100,
+      "rewardGold": 120
+    },
+    {
+      "questType": "main",
+      "questId": "q_main002",
+      "prerequisiteQuestId": "q_main001",
+      "name": "学会战斗",
+      "description": "你已经迈出了第一步，现在要学会真正的战斗技巧——成功战胜敌人！",
+      "minLevel": 2,
+      "defaultAccepted": 0,
+      "visible": 1,
+      "objectives": [
+        {
+          "type": "kill",
+          "target": "",
+          "required": 1,
+          "description": "成功战胜任意敌人"
+        }
+      ],
+      "rewardExp": 200,
+      "rewardGold": 240
+    },
+    {
+      "questType": "world",
+      "questId": "q_world_cs001",
       "name": "初出茅庐",
       "description": "击败3只史莱姆，证明你的战斗能力。",
+      "minLevel": 1,
+      "visible": 1,
       "objectives": [
         {
           "type": "kill",
@@ -15,8 +59,12 @@
       "rewardGold": 20
     },
     {
+      "questType": "world",
+      "questId": "q_world_cs002",
       "name": "哥布林杀手",
       "description": "击败5只哥布林，清理校园周边的怪物。",
+      "minLevel": 1,
+      "visible": 1,
       "objectives": [
         {
           "type": "kill",
@@ -29,8 +77,12 @@
       "rewardGold": 50
     },
     {
-      "name": "药草采集者",
+      "questType": "world",
+      "questId": "q_world_cs003",
+      "name": "药草收集者",
       "description": "收集5株药草，为校园医务室补充药材。",
+      "minLevel": 1,
+      "visible": 1,
       "objectives": [
         {
           "type": "collect",
@@ -43,8 +95,12 @@
       "rewardGold": 30
     },
     {
+      "questType": "world",
+      "questId": "q_world_cs004",
       "name": "装备收集家",
       "description": "收集2件装备，提升自己的战斗能力。",
+      "minLevel": 1,
+      "visible": 1,
       "objectives": [
         {
           "type": "collect",
@@ -57,8 +113,12 @@
       "rewardGold": 60
     },
     {
+      "questType": "world",
+      "questId": "q_world_cs005",
       "name": "杂鱼清除者",
       "description": "击败哥布林和史莱姆各2只，展示你的多面战斗能力。",
+      "minLevel": 1,
+      "visible": 1,
       "objectives": [
         {
           "type": "kill",
@@ -77,8 +137,12 @@
       "rewardGold": 70
     },
     {
+      "questType": "world",
+      "questId": "q_world_cs006",
       "name": "校园守护者",
       "description": "击败强大的巨龙，成为校园的守护英雄。",
+      "minLevel": 1,
+      "visible": 1,
       "objectives": [
         {
           "type": "kill",
@@ -91,8 +155,12 @@
       "rewardGold": 300
     },
     {
+      "questType": "world",
+      "questId": "q_world_cs007",
       "name": "财富积累",
       "description": "积累200金币，证明你的经济头脑。",
+      "minLevel": 1,
+      "visible": 1,
       "objectives": [
         {
           "type": "gold",
@@ -105,8 +173,12 @@
       "rewardGold": 50
     },
     {
+      "questType": "world",
+      "questId": "q_world_cs008",
       "name": "身经百战",
       "description": "赢得5场战斗胜利，积累丰富的战斗经验。",
+      "minLevel": 1,
+      "visible": 1,
       "objectives": [
         {
           "type": "battle_win",

@@ -1,6 +1,6 @@
 ﻿// TaskSystem.h
-#ifndef TASK_SYSTEM_H
-#define TASK_SYSTEM_H
+#ifndef TASK_SYSTEM_H_TASK_SYSTEM_H
+#define TASK_SYSTEM_H_TASK_SYSTEM_H
 
 #include "Task.h"
 
@@ -10,8 +10,8 @@
 // TaskSystem
 // ------------------------------------------------------------
 // 任务系统。
-// 管理所有任务，支持查看、接受、完成和领取奖励。
-// 新增：事件消息监测 - 收到匹配事件时自动更新激活任务的进度。
+// 管理所有任务，支持按类型（主线/世界/隐藏）分类显示、
+// 前置条件校验、隐藏任务触发、事件消息广播等。
 // ============================================================
 
 class TaskSystem
@@ -19,7 +19,6 @@ class TaskSystem
 private:
     std::vector<Task> tasks;
 
-    // 旧格式兼容加载（管道分隔文本）
     void loadLegacyTasks();
 
 public:
@@ -27,37 +26,54 @@ public:
 
     TaskSystem();
 
-    // 加载任务数据（JSON 格式）
+    // JSON 加载
     void loadTasks();
 
-    // 显示所有任务
-    void showTasks() const;
+    // ---- 自动接取默认任务 ----
+    // 遍历所有任务，将 defaultAccepted=true 且未接取的任务自动接取
+    void autoAcceptDefaults();
 
-    // 显示指定任务详细信息
-    bool showTaskDetail(int index) const;
+    // ---- 分类显示 ----
+    void showTasksOverview() const;
+    void showTasksByType(QuestType type, bool showHidden = false) const;
 
-    // 接受指定任务
-    bool acceptTask(int index);
+    // ---- 条件校验 ----
+    // 检查指定任务是否满足接取条件（等级、前置任务）
+    bool canAcceptTask(int index, const Character& player) const;
 
-    // 手动完成指定任务
+    // ---- 接受任务（带校验 + 玩家上下文） ----
+    bool acceptTask(int index, const Character& player);
+
+    // ---- 手动完成 ----
     bool completeTask(int index);
 
-    // 领取指定任务奖励
+    // ---- 领取奖励 ----
+    // 返回 true 表示成功领取；若任务解锁了商店回调应由此触发
     bool claimReward(int index, Character& player);
 
-    // ---- 新增：事件消息处理 ----
+    // ---- 隐藏任务触发 ----
+    // 将隐藏任务设为可见并接取（用于满足刁钻触发条件时调用）
+    bool triggerHiddenQuest(int index);
 
-    // 广播一条任务消息给所有已接受的任务
-    // 自动匹配子目标、推进进度，并在所有目标完成时自动切换状态
-    // 返回被更新的任务数量
+    // ---- 按 questId 查找 ----
+    int findTaskByQuestId(const std::string& questId) const;
+
+    // ---- 获取某类型任务数量 ----
+    int countByType(QuestType type) const;
+
+    // ---- 状态查询 ----
+    TaskStatus getTaskStatusByIndex(int index) const;
+
+    // ---- 事件消息 ----
     int broadcastMessage(const TaskMessage& msg);
-
-    // 为指定玩家检查所有进行中的任务是否可自动完成
-    // 通常在任务进度更新后调用
     void checkAllAutoComplete();
 
-    // 获取任务数量
+    // ---- 详情 ----
+    bool showTaskDetail(int index) const;
     int size() const;
+
+    // 旧版 showTasks（无参数）
+    void showTasks() const { showTasksOverview(); }
 };
 
 #endif
