@@ -79,7 +79,7 @@ g++ -std=c++17 -O2 -Iinclude -Isrc \
 如果你在 PowerShell 里直接调用 MSYS2 的 `g++`，可以写成：
 
 ```powershell
-& "C:\msys64\mingw64\bin\g++.exe" -std=c++17 -O2 -Iinclude -Isrc `
+& g++ -std=c++17 -O2 -Iinclude -Isrc `
   main.cpp `
   src\AdventureManager.cpp `
   src\AIAssistant.cpp `
@@ -104,11 +104,6 @@ g++ -std=c++17 -O2 -Iinclude -Isrc \
   src\TaskSystem.cpp `
   -o CampusRPG.exe
 ```
-
-说明：
-
-- 上面的 `C:\msys64\mingw64\bin\g++.exe` 只是示例路径，请改成你本机的实际路径
-- 当前 AI 功能依赖 Python 脚本，不需要额外链接 `libcurl`
 
 ## 运行
 
@@ -187,23 +182,29 @@ g++ -std=c++17 -O2 -Iinclude -Isrc \
 通过环境变量配置：
 
 ```env
-BATTLE_AI_API_URL=your_chat_completions_url
-BATTLE_AI_API_KEY=your_api_key
-BATTLE_AI_MODEL=your_model_name
+HELP_AI_MODEL=YOUR_HELP_AI_MODEL
+HELP_AI_API_KEY=YOUR_HELP_AI_API_KEY
+HELP_AI_API_URL=YOUR_HELP_AI_API_URL
+BATTLE_AI_MODEL=YOUR_BATTLE_AI_MODEL
+BATTLE_AI_API_KEY=YOUR_BATTLE_AI_API_KEY
+BATTLE_AI_API_URL=YOUR_BATTLE_AI_API_URL
 ```
 
 说明：
 
-- `BATTLE_AI_API_URL` 需要是兼容聊天补全接口的地址
-- `BATTLE_AI_MODEL` 由你自己使用的服务端模型名决定
-- 如果这些变量缺失，战斗 AI 会自动退回本地策略
+- `AI_API_URL` 需要是兼容聊天补全接口的地址
+- `AI_MODEL` 由你自己使用的服务端模型名决定
+- 如果这些变量缺失，AI 会自动退回本地策略
 
 ### AI 脚本位置
 
 战斗 AI 脚本位于：
 
 ```text
-scripts/battle_ai.py
+scripts
+| 
+|__ battle_ai.py
+|__ help_ai.py
 ```
 
 程序会通过项目路径解析查找它，因此通常不需要手动复制到 `build` 目录。
