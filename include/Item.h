@@ -39,6 +39,13 @@ public:
     // 便于商店商品复制到背包中。
     virtual std::unique_ptr<Item> clone() const = 0;
 
+    // 战斗内是否允许作为一次性道具使用。
+    // 当前仅回复类消耗品开放，装备仍保持战斗外使用。
+    virtual bool canUseInBattle() const { return false; }
+
+    // 战斗内回复量。默认 0，非回复类物品不生效。
+    virtual int getBattleHealAmount() const { return 0; }
+
     std::string getName() const;
     std::string getDescription() const;
     int getPrice() const;
@@ -58,6 +65,8 @@ public:
     std::string getType() const override;
     std::string getEffectDescription() const override;
     std::unique_ptr<Item> clone() const override;
+    bool canUseInBattle() const override { return true; }
+    int getBattleHealAmount() const override { return recoverHp; }
 };
 
 // 药品类物品：一般用于较大幅度治疗或特殊恢复。
@@ -74,6 +83,8 @@ public:
     std::string getType() const override;
     std::string getEffectDescription() const override;
     std::unique_ptr<Item> clone() const override;
+    bool canUseInBattle() const override { return true; }
+    int getBattleHealAmount() const override { return healAmount; }
 };
 
 // 装备类物品：用于提升角色攻击或防御属性。

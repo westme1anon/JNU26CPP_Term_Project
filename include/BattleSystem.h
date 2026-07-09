@@ -8,6 +8,7 @@
 #include "Character.h"
 #include "Enemy.h"
 #include "EnemyFactory.h"
+#include "Inventory.h"
 
 #include <string>
 #include <vector>
@@ -35,13 +36,13 @@ public:
     Enemy selectEnemy(int index) const;
     int enemyCount() const;
 
-    BattleResult startBattle(Character& player);
-    BattleResult startBattle(Character& player, int stage, bool isBoss);
-    BattleResult startBattle(Character& player, const std::vector<Enemy>& enemies, bool isBoss);
+    BattleResult startBattle(Character& player, Inventory& inventory);
+    BattleResult startBattle(Character& player, Inventory& inventory, int stage, bool isBoss);
+    BattleResult startBattle(Character& player, Inventory& inventory, const std::vector<Enemy>& enemies, bool isBoss);
 
 private:
-    BattleOutcome fightOneEnemy(Character& player, const Enemy& enemy) const;
-    BattleOutcome runCardBattle(Character& player, const Enemy& enemy) const;
+    BattleOutcome fightOneEnemy(Character& player, Inventory& inventory, const Enemy& enemy) const;
+    BattleOutcome runCardBattle(Character& player, Inventory& inventory, const Enemy& enemy) const;
     void beginRound(BattleActorState& playerState, BattleActorState& enemyState) const;
     void printBattleState(
         const BattleActorState& playerState,
@@ -52,10 +53,12 @@ private:
     BattleDecision getPlayerDecision(
         const BattleTurnContext& context,
         const BattleActorState& playerState,
-        const BattleActorState& enemyState) const;
+        const BattleActorState& enemyState,
+        const Inventory& inventory) const;
     BattleDecision chooseCommandAction(
         const BattleActorState& playerState,
-        const BattleActorState& enemyState) const;
+        const BattleActorState& enemyState,
+        const Inventory& inventory) const;
     void applyDefenseResolution(
         BattleActorState& actor,
         BattleDeck& actorDeck,
@@ -66,9 +69,11 @@ private:
     void executeAction(
         BattleActorState& actor,
         BattleActorState& target,
-        BattleAction action) const;
+        const BattleDecision& decision,
+        Inventory* inventory) const;
     int calculateDamage(const BattleActorState& attacker, const BattleActorState& defender) const;
     int calculateHealAmount(const BattleActorState& actor) const;
+    std::vector<int> collectBattleUsableItems(const Inventory& inventory) const;
     bool determinePlayerFirst(const BattleActorState& playerState, const BattleActorState& enemyState) const;
     std::string makeHpBar(int hp, int maxHp, int width = 24) const;
 };

@@ -45,7 +45,7 @@ public:
     int getMaxStages() const { return maxStages; }
 
 private:
-    BattleOutcome triggerBattle(Character& player, const std::vector<Enemy>& enemies);
+    BattleOutcome triggerBattle(Character& player, Inventory& inventory, const std::vector<Enemy>& enemies);
     Loot generateLoot(const std::vector<Enemy>& enemies);
     void settleAdventure(AdventureStatus status, Character& player, Inventory& inventory);
     void addItemToInventory(const std::string& itemName, Inventory& inventory);

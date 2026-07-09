@@ -415,7 +415,7 @@ void GameManager::adventureMenu()
 
 void GameManager::battleMenu()
 {
-    BattleResult result = battleSystem.startBattle(player);
+    BattleResult result = battleSystem.startBattle(player, inventory);
 
     if (result.outcome == BattleOutcome::PLAYER_WIN)
     {

@@ -73,7 +73,7 @@ AdventureStatus AdventureManager::startAdventure(Character& player, Inventory& i
             stageEnemies[i].showInfo();
         }
 
-        const BattleOutcome result = triggerBattle(player, stageEnemies);
+        const BattleOutcome result = triggerBattle(player, inventory, stageEnemies);
         if (result == BattleOutcome::PLAYER_WIN)
         {
             Loot dropped = generateLoot(stageEnemies);
@@ -122,12 +122,12 @@ AdventureStatus AdventureManager::startAdventure(Character& player, Inventory& i
     return AdventureStatus::SUCCESS;
 }
 
-BattleOutcome AdventureManager::triggerBattle(Character& player, const std::vector<Enemy>& enemies)
+BattleOutcome AdventureManager::triggerBattle(Character& player, Inventory& inventory, const std::vector<Enemy>& enemies)
 {
     const bool isBoss = (currentStage == maxStages);
     // 直接把当前阶段已经生成好的敌人列表交给 BattleSystem，
     // 避免再次随机生成造成“看到的敌人”和“实际打的敌人”不一致。
-    BattleResult result = battleSystem.startBattle(player, enemies, isBoss);
+    BattleResult result = battleSystem.startBattle(player, inventory, enemies, isBoss);
     return result.outcome;
 }
 

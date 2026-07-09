@@ -18,6 +18,7 @@ std::string toString(BattleAction action)
     case BattleAction::Defense: return "防御";
     case BattleAction::Heal: return "回复";
     case BattleAction::Escape: return "逃跑";
+    case BattleAction::UseItem: return "使用道具";
     default: return "无";
     }
 }

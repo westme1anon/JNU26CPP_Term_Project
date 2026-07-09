@@ -22,7 +22,8 @@ enum class BattleAction
     Attack = 1,
     Defense = 2,
     Heal = 3,
-    Escape = 4
+    Escape = 4,
+    UseItem = 5
 };
 
 enum class CardType
@@ -55,6 +56,7 @@ struct BattleDecision
     bool usedCommand = false;
     bool usedBattleItem = false;
     int selectedIndex = -1;
+    int inventoryIndex = -1;
 };
 
 struct BattleActorState

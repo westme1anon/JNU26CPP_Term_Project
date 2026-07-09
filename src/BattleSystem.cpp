@@ -77,7 +77,7 @@ int BattleSystem::enemyCount() const
     return enemyFactory.templateCount();
 }
 
-BattleResult BattleSystem::startBattle(Character& player)
+BattleResult BattleSystem::startBattle(Character& player, Inventory& inventory)
 {
     BattleResult result;
     result.outcome = BattleOutcome::PLAYER_DEAD;
@@ -95,7 +95,7 @@ BattleResult BattleSystem::startBattle(Character& player)
     // 自由战斗采用随机敌人；Adventure 模式则由上层传入固定敌人序列。
     Enemy enemy = selectEnemy(-1);
     result.enemyName = enemy.getName();
-    result.outcome = fightOneEnemy(player, enemy);
+    result.outcome = fightOneEnemy(player, inventory, enemy);
 
     if (result.outcome == BattleOutcome::PLAYER_WIN)
     {
@@ -122,13 +122,13 @@ BattleResult BattleSystem::startBattle(Character& player)
     return result;
 }
 
-BattleResult BattleSystem::startBattle(Character& player, int stage, bool isBoss)
+BattleResult BattleSystem::startBattle(Character& player, Inventory& inventory, int stage, bool isBoss)
 {
     std::vector<Enemy> enemies = enemyFactory.generateEnemies(stage);
-    return startBattle(player, enemies, isBoss);
+    return startBattle(player, inventory, enemies, isBoss);
 }
 
-BattleResult BattleSystem::startBattle(Character& player, const std::vector<Enemy>& enemies, bool isBoss)
+BattleResult BattleSystem::startBattle(Character& player, Inventory& inventory, const std::vector<Enemy>& enemies, bool isBoss)
 {
     BattleResult result;
     result.outcome = BattleOutcome::PLAYER_DEAD;
@@ -171,7 +171,7 @@ BattleResult BattleSystem::startBattle(Character& player, const std::vector<Enem
             ConsoleUI::pause();
         }
 
-        const BattleOutcome fightOutcome = fightOneEnemy(player, enemies[i]);
+        const BattleOutcome fightOutcome = fightOneEnemy(player, inventory, enemies[i]);
         if (fightOutcome == BattleOutcome::PLAYER_WIN)
         {
             ++defeated;
@@ -211,12 +211,12 @@ BattleResult BattleSystem::startBattle(Character& player, const std::vector<Enem
     return result;
 }
 
-BattleOutcome BattleSystem::fightOneEnemy(Character& player, const Enemy& enemy) const
+BattleOutcome BattleSystem::fightOneEnemy(Character& player, Inventory& inventory, const Enemy& enemy) const
 {
-    return runCardBattle(player, enemy);
+    return runCardBattle(player, inventory, enemy);
 }
 
-BattleOutcome BattleSystem::runCardBattle(Character& player, const Enemy& enemy) const
+BattleOutcome BattleSystem::runCardBattle(Character& player, Inventory& inventory, const Enemy& enemy) const
 {
     // Character / Enemy 先被投影为一次性的战斗快照；
     // 之后所有回合内状态都只修改快照，最后再把玩家 HP 写回角色对象。
@@ -253,7 +253,7 @@ BattleOutcome BattleSystem::runCardBattle(Character& player, const Enemy& enemy)
                 std::cout << card.getName() << " ";
             std::cout << "]\n";
 
-            playerDecision = getPlayerDecision(context, playerState, enemyState);
+            playerDecision = getPlayerDecision(context, playerState, enemyState, inventory);
             if (playerDecision.action == BattleAction::Escape)
             {
                 BattleMapper::applyPlayerHp(player, playerState.currentHp);
@@ -277,7 +277,7 @@ BattleOutcome BattleSystem::runCardBattle(Character& player, const Enemy& enemy)
             std::cout << "情报：" << enemyState.name << " 先手，公开意图为 ["
                       << toString(enemyDecision.action) << "]。\n";
 
-            playerDecision = getPlayerDecision(context, playerState, enemyState);
+            playerDecision = getPlayerDecision(context, playerState, enemyState, inventory);
             if (playerDecision.action == BattleAction::Escape)
             {
                 BattleMapper::applyPlayerHp(player, playerState.currentHp);
@@ -293,7 +293,10 @@ BattleOutcome BattleSystem::runCardBattle(Character& player, const Enemy& enemy)
         if (playerDecision.usedCommand)
         {
             playerState.commandUsed = true;
-            std::cout << "你发动了指令，强制执行 [" << toString(playerDecision.action) << "]。\n";
+            if (playerDecision.action == BattleAction::UseItem)
+                std::cout << "你发动了指令，强制使用战斗道具。\n";
+            else
+                std::cout << "你发动了指令，强制执行 [" << toString(playerDecision.action) << "]。\n";
         }
         if (enemyDecision.usedCommand)
         {
@@ -318,15 +321,15 @@ BattleOutcome BattleSystem::runCardBattle(Character& player, const Enemy& enemy)
         // 会在正式执行动作前先结算。
         if (playerFirst)
         {
-            executeAction(playerState, enemyState, playerDecision.action);
+            executeAction(playerState, enemyState, playerDecision, &inventory);
             if (enemyState.isAlive())
-                executeAction(enemyState, playerState, enemyDecision.action);
+                executeAction(enemyState, playerState, enemyDecision, nullptr);
         }
         else
         {
-            executeAction(enemyState, playerState, enemyDecision.action);
+            executeAction(enemyState, playerState, enemyDecision, nullptr);
             if (playerState.isAlive())
-                executeAction(playerState, enemyState, playerDecision.action);
+                executeAction(playerState, enemyState, playerDecision, &inventory);
         }
 
         std::cout << "\n回合结束 -> 你的 HP: " << playerState.currentHp
@@ -393,14 +396,15 @@ void BattleSystem::printHand(const std::vector<BattleCard>& hand, const std::str
 BattleDecision BattleSystem::getPlayerDecision(
     const BattleTurnContext& context,
     const BattleActorState& playerState,
-    const BattleActorState& enemyState) const
+    const BattleActorState& enemyState,
+    const Inventory& inventory) const
 {
     while (true)
     {
         std::cout << "\n";
         printHand(context.playerHand, "你的");
         // 指令保留为二级菜单，避免未来接入战斗内背包时再次改动主选择流程。
-        std::cout << "9. 使用指令（强制攻击/防御/回复）\n";
+        std::cout << "9. 使用指令（强制攻击/防御/回复/使用道具）\n";
         std::cout << "0. 逃跑\n";
         const int choice = ConsoleUI::readInt("请选择行动: ");
 
@@ -413,7 +417,7 @@ BattleDecision BattleSystem::getPlayerDecision(
 
         if (choice == 9)
         {
-            BattleDecision decision = chooseCommandAction(playerState, enemyState);
+            BattleDecision decision = chooseCommandAction(playerState, enemyState, inventory);
             if (decision.action != BattleAction::None)
                 return decision;
             continue;
@@ -433,7 +437,8 @@ BattleDecision BattleSystem::getPlayerDecision(
 
 BattleDecision BattleSystem::chooseCommandAction(
     const BattleActorState& playerState,
-    const BattleActorState& enemyState) const
+    const BattleActorState& enemyState,
+    const Inventory& inventory) const
 {
     (void)enemyState;
 
@@ -450,7 +455,7 @@ BattleDecision BattleSystem::chooseCommandAction(
         std::cout << "1. 强制攻击\n";
         std::cout << "2. 强制防御\n";
         std::cout << "3. 强制回复\n";
-        std::cout << "4. 预留：战斗中使用背包物品（暂未实现）\n";
+        std::cout << "4. 战斗中使用背包物品\n";
         std::cout << "0. 返回\n";
         const int choice = ConsoleUI::readInt("请选择指令: ");
 
@@ -467,7 +472,38 @@ BattleDecision BattleSystem::chooseCommandAction(
 
         if (choice == 4)
         {
-            std::cout << "战斗内背包接口已预留，本次版本暂未接入 Inventory。\n";
+            const std::vector<int> usableIndices = collectBattleUsableItems(inventory);
+            if (usableIndices.empty())
+            {
+                std::cout << "当前背包里没有可在战斗中使用的回复类道具。\n";
+                continue;
+            }
+
+            std::cout << "\n[可用战斗道具]\n";
+            for (size_t i = 0; i < usableIndices.size(); ++i)
+            {
+                const Item* item = inventory.getItem(usableIndices[i]);
+                if (!item) continue;
+                std::cout << (i + 1) << ". [" << item->getType() << "] "
+                          << item->getName() << " | " << item->getEffectDescription() << "\n";
+            }
+            std::cout << "0. 返回\n";
+
+            const int itemChoice = ConsoleUI::readInt("请选择道具: ");
+            if (itemChoice == 0)
+                continue;
+
+            if (itemChoice >= 1 && itemChoice <= static_cast<int>(usableIndices.size()))
+            {
+                BattleDecision decision;
+                decision.usedCommand = true;
+                decision.usedBattleItem = true;
+                decision.action = BattleAction::UseItem;
+                decision.inventoryIndex = usableIndices[itemChoice - 1];
+                return decision;
+            }
+
+            std::cout << "无效选择，请重新输入。\n";
             continue;
         }
 
@@ -506,13 +542,14 @@ void BattleSystem::applyDefenseResolution(
 void BattleSystem::executeAction(
     BattleActorState& actor,
     BattleActorState& target,
-    BattleAction action) const
+    const BattleDecision& decision,
+    Inventory* inventory) const
 {
     if (!actor.isAlive())
         return;
 
     // 这里不处理 Escape；逃跑在决策阶段就已经直接返回到上层流程。
-    if (action == BattleAction::Attack)
+    if (decision.action == BattleAction::Attack)
     {
         if (actor.disarmed)
         {
@@ -530,14 +567,14 @@ void BattleSystem::executeAction(
         return;
     }
 
-    if (action == BattleAction::Defense)
+    if (decision.action == BattleAction::Defense)
     {
         actor.incomingDamageMultiplier = std::min(actor.incomingDamageMultiplier, 0.35);
         std::cout << actor.name << " 进入防御姿态。\n";
         return;
     }
 
-    if (action == BattleAction::Heal)
+    if (decision.action == BattleAction::Heal)
     {
         // 回复量与攻击属性挂钩，延续参考项目里“进攻型角色回复更强”的倾向。
         const int healAmount = calculateHealAmount(actor);
@@ -545,6 +582,26 @@ void BattleSystem::executeAction(
         actor.currentHp = std::min(actor.maxHp, actor.currentHp + healAmount);
         std::cout << actor.name << " 打出回复牌，恢复了 "
                   << (actor.currentHp - before) << " 点生命。\n";
+    }
+
+    if (decision.action == BattleAction::UseItem)
+    {
+        if (inventory == nullptr || decision.inventoryIndex < 0)
+            return;
+
+        const Item* item = inventory->getItem(decision.inventoryIndex);
+        if (item == nullptr || !item->canUseInBattle())
+        {
+            std::cout << actor.name << " 试图使用战斗道具，但该道具当前不可用。\n";
+            return;
+        }
+
+        const int healAmount = std::max(0, item->getBattleHealAmount());
+        const int before = actor.currentHp;
+        actor.currentHp = std::min(actor.maxHp, actor.currentHp + healAmount);
+        std::cout << actor.name << " 使用了 [" << item->getName() << "]，恢复了 "
+                  << (actor.currentHp - before) << " 点生命。\n";
+        inventory->removeItem(decision.inventoryIndex);
     }
 }
 
@@ -564,6 +621,18 @@ int BattleSystem::calculateDamage(const BattleActorState& attacker, const Battle
 int BattleSystem::calculateHealAmount(const BattleActorState& actor) const
 {
     return std::max(1, actor.attack * 8 / 10);
+}
+
+std::vector<int> BattleSystem::collectBattleUsableItems(const Inventory& inventory) const
+{
+    std::vector<int> indices;
+    for (int i = 0; i < inventory.size(); ++i)
+    {
+        const Item* item = inventory.getItem(i);
+        if (item != nullptr && item->canUseInBattle())
+            indices.push_back(i);
+    }
+    return indices;
 }
 
 bool BattleSystem::determinePlayerFirst(const BattleActorState& playerState, const BattleActorState& enemyState) const

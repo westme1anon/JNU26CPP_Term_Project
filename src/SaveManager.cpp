@@ -186,11 +186,14 @@ bool SaveManager::loadGame(
             if (pos == std::string::npos) continue;
             std::string taskName = line.substr(0, pos);
             std::string statusStr = line.substr(pos + 1);
-            TaskStatus status;
+            TaskStatus status = TaskStatus::NotAccepted;
+            bool validStatus = true;
             if (statusStr == "NotAccepted")      status = TaskStatus::NotAccepted;
             else if (statusStr == "Accepted")    status = TaskStatus::Accepted;
             else if (statusStr == "Completed")   status = TaskStatus::Completed;
             else if (statusStr == "RewardClaimed") status = TaskStatus::RewardClaimed;
+            else validStatus = false;
+            if (!validStatus) continue;
             for (size_t i = 0; i < taskSystem.tasks.size(); ++i)
             {
                 Task& t = taskSystem.tasks[i];
