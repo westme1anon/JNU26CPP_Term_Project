@@ -107,7 +107,7 @@ std::filesystem::path findFileUpwards(
 
 std::filesystem::path findPythonScriptPath()
 {
-    const std::filesystem::path relativeScript = std::filesystem::path("scripts") / "ai_helper.py";
+    const std::filesystem::path relativeScript = std::filesystem::path("scripts") / "help_ai.py";
 
     if (std::filesystem::exists(relativeScript))
     {

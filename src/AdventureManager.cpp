@@ -1,4 +1,3 @@
-// AdventureManager.cpp
 #include "AdventureManager.h"
 #include "ConsoleUI.h"
 #include "GameConfig.h"
@@ -11,13 +10,8 @@
 #include <iostream>
 #include <random>
 
-// ============================================================
-// 构造
-// ============================================================
-
 AdventureManager::AdventureManager()
-    : currentStage(1)
-    , maxStages(5)   // 第5场为Boss战
+    : currentStage(1), maxStages(5)
 {
 }
 
@@ -26,11 +20,10 @@ void AdventureManager::loadEnemyData()
     std::string resolved = PathUtil::resolvePath(GameConfig::ENEMIES_FILE_PATH);
     if (resolved.empty()) resolved = GameConfig::ENEMIES_FILE_PATH;
     enemyFactory.loadFromJson(resolved);
+    // AdventureManager 自己需要敌人列表做展示和掉落计算，
+    // BattleSystem 也需要同一份敌人数据做正式战斗，因此两边都加载。
+    battleSystem.loadEnemies();
 }
-
-// ============================================================
-// 启动冒险（核心循环）
-// ============================================================
 
 AdventureStatus AdventureManager::startAdventure(Character& player, Inventory& inventory)
 {
@@ -38,65 +31,59 @@ AdventureStatus AdventureManager::startAdventure(Character& player, Inventory& i
     temporaryBackpack = {0, {}};
 
     ConsoleUI::clearScreen();
-    ConsoleUI::printTitle("\xe5\xbc\x80\xe5\xa7\x8b\xe6\x96\xb0\xe7\x9a\x84\xe5\x86\x92\xe9\x99\xa9\xef\xbc\x81");
-    std::cout << "\xe6\x9c\xac\xe6\xac\xa1\xe5\x86\x92\xe9\x99\xa9\xe5\x85\xb1\xe6\x9c\x89 " << maxStages << " \xe5\x9c\xba\xe6\x88\x98\xe6\x96\x97\xe3\x80\x82\n";
-    std::cout << "\xe7\xac\xac 1 \xe5\x9c\xba: 1 \xe6\x99\xae\xe9\x80\x9a\xe6\x80\xaa\n";
-    std::cout << "\xe7\xac\xac 2 \xe5\x9c\xba: 2 \xe6\x99\xae\xe9\x80\x9a\xe6\x80\xaa\n";
-    std::cout << "\xe7\xac\xac 3 \xe5\x9c\xba: 1 \xe6\x99\xae\xe9\x80\x9a\xe6\x80\xaa + 1 \xe7\xb2\xbe\xe8\x8b\xb1\xe6\x80\xaa\n";
-    std::cout << "\xe7\xac\xac 4 \xe5\x9c\xba: 2 \xe7\xb2\xbe\xe8\x8b\xb1\xe6\x80\xaa\n";
-    std::cout << "\xe7\xac\xac 5 \xe5\x9c\xba: 1 \xe9\xa6\x96\xe9\xa2\x86 (Boss)\n";
-    std::cout << "\n\xe6\xaf\x8f\xe5\x9c\xba\xe6\x88\x98\xe6\x96\x97\xe8\x83\x9c\xe5\x88\xa9\xe5\x8f\xaf\xe8\x8e\xb7\xe5\xbe\x97\xe6\x88\x98\xe5\x88\xa9\xe5\x93\x81\xef\xbc\x8c\xe9\x80\x9a\xe5\x85\xb3\xe5\x90\x8e\xe5\x85\xa8\xe9\x83\xa8\xe5\xb8\xa6\xe5\x9b\x9e\xef\xbc\x81\n";
-    std::cout << "\xe4\xb8\xad\xe9\x80\x94\xe9\x80\x83\xe8\xb7\x91\xe4\xbc\x9a\xe9\x9a\x8f\xe6\x9c\xba\xe4\xb8\xa2\xe5\xa4\xb1\xe7\xba\xa6" "30%\xe7\x9a\x84\xe6\x88\x98\xe5\x88\xa9\xe5\x93\x81\xef\xbc\x8c\xe6\x88\x98\xe8\xb4\xa5\xe5\x88\x99\xe5\x85\xa8\xe9\x83\xa8\xe4\xb8\xa2\xe5\xa4\xb1\xe3\x80\x82\n";
+    ConsoleUI::printTitle("开始新的冒险！");
+    std::cout << "本次冒险共有 " << maxStages << " 场战斗。\n";
+    std::cout << "第 1 场: 1 普通怪\n";
+    std::cout << "第 2 场: 2 普通怪\n";
+    std::cout << "第 3 场: 1 普通怪 + 1 精英怪\n";
+    std::cout << "第 4 场: 2 精英怪\n";
+    std::cout << "第 5 场: 1 首领 (Boss)\n";
+    std::cout << "\n每场战斗胜利可获得战利品，通关后全部带回！\n";
+    std::cout << "中途逃跑会随机丢失约30%的战利品，战败则全部丢失。\n";
     ConsoleUI::pause();
 
     while (currentStage <= maxStages)
     {
-        // 使用工厂根据当前阶段生成敌人
         std::vector<Enemy> stageEnemies = enemyFactory.generateEnemies(currentStage);
-        bool isBoss = (currentStage == maxStages);
+        const bool isBoss = (currentStage == maxStages);
 
         ConsoleUI::clearScreen();
-        ConsoleUI::printTitle("\xe5\x86\x92\xe9\x99\xa9\xe8\xbf\x9b\xe8\xa1\x8c\xe4\xb8\xad");
-        std::cout << "\xe5\xbd\x93\xe5\x89\x8d\xe8\xbf\x9b\xe5\xba\xa6: \xe7\xac\xac " << currentStage << " / " << maxStages << " \xe5\x9c\xba\n";
-        std::cout << "\xe4\xb8\xb4\xe6\x97\xb6\xe8\x83\x8c\xe5\x8c\x85: " << temporaryBackpack.gold << " \xe9\x87\x91\xe5\xb8\x81";
+        ConsoleUI::printTitle("冒险进行中");
+        std::cout << "当前进度: 第 " << currentStage << " / " << maxStages << " 场\n";
+        std::cout << "临时背包: " << temporaryBackpack.gold << " 金币";
         if (!temporaryBackpack.items.empty())
-        {
-            std::cout << ", " << temporaryBackpack.items.size() << " \xe4\xbb\xb6\xe7\x89\xa9\xe5\x93\x81";
-        }
+            std::cout << ", " << temporaryBackpack.items.size() << " 件物品";
         std::cout << "\n\n";
 
         ConsoleUI::printLine('-');
         if (isBoss)
         {
             ConsoleUI::setColor(GameConfig::COLOR_WARNING);
-            std::cout << "!!! Boss \xe6\x88\x98 !!!  \xe6\x95\x8c\xe4\xba\xba\xe6\x95\xb0\xe9\x87\x8f: " << stageEnemies.size() << "\n";
+            std::cout << "!!! Boss 战 !!!  敌人数量: " << stageEnemies.size() << "\n";
             ConsoleUI::resetColor();
         }
         else
         {
-            std::cout << "\xe7\xac\xac " << currentStage << " \xe5\x9c\xba\xe6\x88\x98\xe6\x96\x97  \xe6\x95\x8c\xe4\xba\xba\xe6\x95\xb0\xe9\x87\x8f: " << stageEnemies.size() << "\n";
+            std::cout << "第 " << currentStage << " 场战斗  敌人数量: " << stageEnemies.size() << "\n";
         }
 
-        // 显示敌人信息
         for (size_t i = 0; i < stageEnemies.size(); ++i)
         {
             std::cout << "  " << (i + 1) << ". ";
             stageEnemies[i].showInfo();
         }
 
-        BattleOutcome result = triggerBattle(stageEnemies);
-
+        const BattleOutcome result = triggerBattle(player, stageEnemies);
         if (result == BattleOutcome::PLAYER_WIN)
         {
-            // 胜利：根据敌人生成战利品
             Loot dropped = generateLoot(stageEnemies);
             temporaryBackpack.gold += dropped.gold;
 
             ConsoleUI::setColor(GameConfig::COLOR_SUCCESS);
-            std::cout << "\n\xe6\x88\x98\xe6\x96\x97\xe8\x83\x9c\xe5\x88\xa9\xef\xbc\x81\xe8\x8e\xb7\xe5\xbe\x97 " << dropped.gold << " \xe9\x87\x91\xe5\xb8\x81";
+            std::cout << "\n战斗胜利！获得 " << dropped.gold << " 金币";
             if (!dropped.items.empty())
             {
-                std::cout << " \xe5\x92\x8c " << dropped.items.size() << " \xe4\xbb\xb6\xe7\x89\xa9\xe5\x93\x81:";
+                std::cout << " 和 " << dropped.items.size() << " 件物品:";
                 for (const auto& item : dropped.items)
                     std::cout << " [" << item << "]";
             }
@@ -106,66 +93,43 @@ AdventureStatus AdventureManager::startAdventure(Character& player, Inventory& i
             for (const auto& item : dropped.items)
                 temporaryBackpack.items.push_back(item);
 
-            currentStage++;
+            ++currentStage;
             ConsoleUI::pause();
         }
         else if (result == BattleOutcome::PLAYER_ESCAPE)
         {
             ConsoleUI::setColor(GameConfig::COLOR_WARNING);
-            std::cout << "\n\xe4\xbd\xa0\xe9\x80\x89\xe6\x8b\xa9\xe4\xba\x86\xe9\x80\x83\xe8\xb7\x91\xef\xbc\x81\xe5\xb0\x86\xe4\xb8\xa2\xe5\xa4\xb1\xe7\xba\xa6" "30%\xe7\x9a\x84\xe6\x88\x98\xe5\x88\xa9\xe5\x93\x81...\n";
+            std::cout << "\n你选择了逃跑！将丢失约30%的战利品...\n";
             ConsoleUI::resetColor();
             settleAdventure(AdventureStatus::ESCAPED, player, inventory);
             return AdventureStatus::ESCAPED;
         }
-        else // PLAYER_DEAD
+        else
         {
             ConsoleUI::setColor(GameConfig::COLOR_ERROR);
-            std::cout << "\n\xe4\xbd\xa0\xe8\xa2\xab\xe5\x87\xbb\xe8\xb4\xa5\xe4\xba\x86\xef\xbc\x81\xe6\x89\x80\xe6\x9c\x89\xe4\xb8\xb4\xe6\x97\xb6\xe6\x88\x98\xe5\x88\xa9\xe5\x93\x81\xe5\x85\xa8\xe9\x83\xa8\xe4\xb8\xa2\xe5\xa4\xb1...\n";
+            std::cout << "\n你被击败了！所有临时战利品全部丢失...\n";
             ConsoleUI::resetColor();
             settleAdventure(AdventureStatus::DEFEATED, player, inventory);
             return AdventureStatus::DEFEATED;
         }
     }
 
-    // 通关结算
     ConsoleUI::setColor(GameConfig::COLOR_SUCCESS);
-    std::cout << "\n\xe6\x81\xad\xe5\x96\x9c\xef\xbc\x81\xe4\xbd\xa0\xe6\x88\x90\xe5\x8a\x9f\xe9\x80\x9a\xe5\x85\xb3\xe4\xba\x86\xe6\x9c\xac\xe6\xac\xa1\xe5\x86\x92\xe9\x99\xa9\xef\xbc\x81\n";
-    std::cout << "\xe6\x89\x80\xe6\x9c\x89\xe6\x88\x98\xe5\x88\xa9\xe5\x93\x81\xe5\xb7\xb2\xe5\xae\x89\xe5\x85\xa8\xe5\xb8\xa6\xe5\x9b\x9e\xe3\x80\x82\n";
+    std::cout << "\n恭喜！你成功通关了本次冒险！\n";
+    std::cout << "所有战利品已安全带回。\n";
     ConsoleUI::resetColor();
     settleAdventure(AdventureStatus::SUCCESS, player, inventory);
     return AdventureStatus::SUCCESS;
 }
 
-// ============================================================
-// 占位战斗接口
-// 显示敌人信息，使用控制台输入模拟战斗结果
-// ============================================================
-
-BattleOutcome AdventureManager::triggerBattle(const std::vector<Enemy>& enemies)
+BattleOutcome AdventureManager::triggerBattle(Character& player, const std::vector<Enemy>& enemies)
 {
-    (void)enemies; // 当前占位，后续真实战斗会使用
-
-    std::cout << "\n--- \xe6\x88\x98\xe6\x96\x97\xe6\xa8\xa1\xe6\x8b\x9f ---\n";
-    std::cout << "1. \xe6\x88\x98\xe6\x96\x97\xe8\x83\x9c\xe5\x88\xa9\n";
-    std::cout << "2. \xe9\x80\x83\xe8\xb7\x91\n";
-    std::cout << "3. \xe6\x88\x98\xe8\xb4\xa5\n";
-
-    int choice = ConsoleUI::readInt("\xe8\xaf\xb7\xe9\x80\x89\xe6\x8b\xa9\xe6\x88\x98\xe6\x96\x97\xe7\xbb\x93\xe6\x9e\x9c: ");
-
-    switch (choice)
-    {
-    case 1:  return BattleOutcome::PLAYER_WIN;
-    case 2:  return BattleOutcome::PLAYER_ESCAPE;
-    case 3:  return BattleOutcome::PLAYER_DEAD;
-    default:
-        std::cout << "\xe6\x97\xa0\xe6\x95\x88\xe9\x80\x89\xe9\xa1\xb9\xef\xbc\x8c\xe9\xbb\x98\xe8\xae\xa4\xe5\x88\xa4\xe5\xae\x9a\xe4\xb8\xba\xe8\x83\x9c\xe5\x88\xa9\xe3\x80\x82\n";
-        return BattleOutcome::PLAYER_WIN;
-    }
+    const bool isBoss = (currentStage == maxStages);
+    // 直接把当前阶段已经生成好的敌人列表交给 BattleSystem，
+    // 避免再次随机生成造成“看到的敌人”和“实际打的敌人”不一致。
+    BattleResult result = battleSystem.startBattle(player, enemies, isBoss);
+    return result.outcome;
 }
-
-// ============================================================
-// 战利品生成（基于敌人的lootItems）
-// ============================================================
 
 Loot AdventureManager::generateLoot(const std::vector<Enemy>& enemies)
 {
@@ -173,61 +137,50 @@ Loot AdventureManager::generateLoot(const std::vector<Enemy>& enemies)
 
     for (const auto& enemy : enemies)
     {
-        // 金币 = 敌人奖励金 + 随机加成
-        int bonus = rand() % (enemy.getRewardGold() / 2 + 1);
+        const int bonus = rand() % (enemy.getRewardGold() / 2 + 1);
         loot.gold += enemy.getRewardGold() + bonus;
 
-        // 根据敌人的lootItems掉落物品
         const auto& enemyLoot = enemy.getLootItems();
-        if (!enemyLoot.empty())
-        {
-            // 按分级决定掉落数量
-            int dropCount = 1;
-            switch (enemy.getTier())
-            {
-            case EnemyTier::Minion: dropCount = 1; break;
-            case EnemyTier::Elite:  dropCount = (rand() % 2) + 1; break;  // 1-2
-            case EnemyTier::Boss:   dropCount = (rand() % 2) + 2; break;  // 2-3
-            }
+        if (enemyLoot.empty())
+            continue;
 
-            for (int i = 0; i < dropCount; ++i)
-            {
-                int idx = rand() % enemyLoot.size();
-                loot.items.push_back(enemyLoot[idx]);
-            }
+        int dropCount = 1;
+        // 掉落数量继续沿用原冒险系统的 tier 逻辑，
+        // 和新卡牌战斗本身解耦，便于后续单独调平衡。
+        switch (enemy.getTier())
+        {
+        case EnemyTier::Minion: dropCount = 1; break;
+        case EnemyTier::Elite: dropCount = (rand() % 2) + 1; break;
+        case EnemyTier::Boss: dropCount = (rand() % 2) + 2; break;
         }
+
+        for (int i = 0; i < dropCount; ++i)
+            loot.items.push_back(enemyLoot[rand() % enemyLoot.size()]);
     }
 
     return loot;
 }
 
-// ============================================================
-// 冒险结算
-// ============================================================
-
 void AdventureManager::settleAdventure(AdventureStatus status, Character& player, Inventory& inventory)
 {
     ConsoleUI::printLine('=');
-    ConsoleUI::printTitle("\xe5\x86\x92\xe9\x99\xa9\xe7\xbb\x93\xe7\xae\x97");
+    ConsoleUI::printTitle("冒险结算");
 
     switch (status)
     {
     case AdventureStatus::SUCCESS:
-    {
-        std::cout << "\xe7\xbb\x93\xe7\xae\x97\xe7\xbb\x93\xe6\x9e\x9c: \xe6\x88\x90\xe5\x8a\x9f\xe9\x80\x9a\xe5\x85\xb3\xef\xbc\x81\n";
-        std::cout << "\xe8\x8e\xb7\xe5\xbe\x97\xe9\x87\x91\xe5\xb8\x81: " << temporaryBackpack.gold << "\n";
-        std::cout << "\xe8\x8e\xb7\xe5\xbe\x97\xe7\x89\xa9\xe5\x93\x81: " << temporaryBackpack.items.size() << " \xe4\xbb\xb6\n";
-
+        std::cout << "结算结果: 成功通关！\n";
+        std::cout << "获得金币: " << temporaryBackpack.gold << "\n";
+        std::cout << "获得物品: " << temporaryBackpack.items.size() << " 件\n";
         player.gainGold(temporaryBackpack.gold);
         for (const auto& itemName : temporaryBackpack.items)
             addItemToInventory(itemName, inventory);
         break;
-    }
 
     case AdventureStatus::ESCAPED:
     {
-        int totalItems = static_cast<int>(temporaryBackpack.items.size());
-        int loseCount = std::max(1, totalItems * 30 / 100);
+        const int totalItems = static_cast<int>(temporaryBackpack.items.size());
+        const int loseCount = totalItems > 0 ? std::max(1, totalItems * 30 / 100) : 0;
 
         std::vector<int> indices(totalItems);
         for (int i = 0; i < totalItems; ++i) indices[i] = i;
@@ -239,9 +192,9 @@ void AdventureManager::settleAdventure(AdventureStatus status, Character& player
         for (int i = 0; i < loseCount && i < totalItems; ++i)
             lostItems.push_back(temporaryBackpack.items[indices[i]]);
 
-        std::cout << "\xe7\xbb\x93\xe7\xae\x97\xe7\xbb\x93\xe6\x9e\x9c: \xe4\xb8\xad\xe9\x80\x94\xe9\x80\x83\xe8\xb7\x91\n";
-        std::cout << "\xe4\xb8\xa2\xe5\xa4\xb1\xe9\x87\x91\xe5\xb8\x81: " << temporaryBackpack.gold << "\xef\xbc\x88\xe9\x80\x83\xe8\xb7\x91\xe9\x87\x91\xe5\xb8\x81\xe5\x85\xa8\xe4\xb8\xa2\xef\xbc\x89\n";
-        std::cout << "\xe4\xb8\xa2\xe5\xa4\xb1\xe7\x89\xa9\xe5\x93\x81: ";
+        std::cout << "结算结果: 中途逃跑\n";
+        std::cout << "丢失金币: " << temporaryBackpack.gold << "（逃跑金币全丢）\n";
+        std::cout << "丢失物品: ";
         for (const auto& name : lostItems)
             std::cout << "[" << name << "] ";
         std::cout << "\n";
@@ -256,21 +209,19 @@ void AdventureManager::settleAdventure(AdventureStatus status, Character& player
             if (!lost[i])
             {
                 addItemToInventory(temporaryBackpack.items[i], inventory);
-                keptCount++;
+                ++keptCount;
             }
         }
-        std::cout << "\xe4\xbf\x9d\xe7\x95\x99\xe7\x89\xa9\xe5\x93\x81: " << keptCount << " \xe4\xbb\xb6\n";
+        std::cout << "保留物品: " << keptCount << " 件\n";
         break;
     }
 
     case AdventureStatus::DEFEATED:
-    {
-        std::cout << "\xe7\xbb\x93\xe7\xae\x97\xe7\xbb\x93\xe6\x9e\x9c: \xe6\x88\x98\xe8\xb4\xa5\n";
-        std::cout << "\xe4\xb8\xa2\xe5\xa4\xb1\xe9\x87\x91\xe5\xb8\x81: " << temporaryBackpack.gold << "\n";
-        std::cout << "\xe4\xb8\xa2\xe5\xa4\xb1\xe7\x89\xa9\xe5\x93\x81: " << temporaryBackpack.items.size() << " \xe4\xbb\xb6\n";
-        std::cout << "\xe4\xbf\x9d\xe7\x95\x99\xe7\x89\xa9\xe5\x93\x81: 0 \xe4\xbb\xb6\n";
+        std::cout << "结算结果: 战败\n";
+        std::cout << "丢失金币: " << temporaryBackpack.gold << "\n";
+        std::cout << "丢失物品: " << temporaryBackpack.items.size() << " 件\n";
+        std::cout << "保留物品: 0 件\n";
         break;
-    }
 
     default:
         break;
@@ -280,38 +231,34 @@ void AdventureManager::settleAdventure(AdventureStatus status, Character& player
     ConsoleUI::pause();
 }
 
-// ============================================================
-// 将物品名称转换为 Item 并加入背包
-// ============================================================
-
 void AdventureManager::addItemToInventory(const std::string& itemName, Inventory& inventory)
 {
-    if (itemName == "\xe9\x9d\xa2\xe5\x8c\x85")
+    if (itemName == "面包")
     {
-        inventory.addItem(std::make_unique<FoodItem>("\xe9\x9d\xa2\xe5\x8c\x85", "\xe6\x99\xae\xe9\x80\x9a\xe9\x9d\xa2\xe5\x8c\x85\xef\xbc\x8c\xe6\x81\xa2\xe5\xa4\x8d\xe5\xb0\x91\xe9\x87\x8f\xe7\x94\x9f\xe5\x91\xbd\xe5\x80\xbc", 10, 15));
+        inventory.addItem(std::make_unique<FoodItem>("面包", "普通面包，恢复少量生命值", 10, 15));
     }
-    else if (itemName == "\xe8\x8d\xaf\xe8\x8d\x89")
+    else if (itemName == "药草")
     {
-        inventory.addItem(std::make_unique<MedicineItem>("\xe8\x8d\xaf\xe8\x8d\x89", "\xe8\x8d\x89\xe8\x8d\xaf\xef\xbc\x8c\xe6\x81\xa2\xe5\xa4\x8d\xe7\x94\x9f\xe5\x91\xbd\xe5\x80\xbc", 15, 25));
+        inventory.addItem(std::make_unique<MedicineItem>("药草", "草药，恢复生命值", 15, 25));
     }
-    else if (itemName == "\xe7\xbb\xb7\xe5\xb8\xa6")
+    else if (itemName == "绷带")
     {
-        inventory.addItem(std::make_unique<MedicineItem>("\xe7\xbb\xb7\xe5\xb8\xa6", "\xe6\x80\xa5\xe6\x95\x91\xe7\xbb\xb7\xe5\xb8\xa6\xef\xbc\x8c\xe6\x81\xa2\xe5\xa4\x8d\xe7\x94\x9f\xe5\x91\xbd\xe5\x80\xbc", 20, 35));
+        inventory.addItem(std::make_unique<MedicineItem>("绷带", "急救绷带，恢复生命值", 20, 35));
     }
-    else if (itemName == "\xe9\x93\x81\xe5\x89\x91")
+    else if (itemName == "铁剑")
     {
-        inventory.addItem(std::make_unique<EquipmentItem>("\xe9\x93\x81\xe5\x89\x91", "\xe9\x94\x8b\xe5\x88\xa9\xe7\x9a\x84\xe9\x93\x81\xe5\x89\x91", 50, 8, 0));
+        inventory.addItem(std::make_unique<EquipmentItem>("铁剑", "锋利的铁剑", 50, 8, 0));
     }
-    else if (itemName == "\xe7\x9a\xae\xe7\x94\xb2")
+    else if (itemName == "皮甲")
     {
-        inventory.addItem(std::make_unique<EquipmentItem>("\xe7\x9a\xae\xe7\x94\xb2", "\xe8\xbd\xbb\xe4\xbe\xbf\xe7\x9a\x84\xe7\x9a\xae\xe7\x94\xb2", 50, 0, 5));
+        inventory.addItem(std::make_unique<EquipmentItem>("皮甲", "轻便的皮甲", 50, 0, 5));
     }
-    else if (itemName == "\xe5\x8a\x9b\xe9\x87\x8f\xe6\x88\x92\xe6\x8c\x87")
+    else if (itemName == "力量戒指")
     {
-        inventory.addItem(std::make_unique<EquipmentItem>("\xe5\x8a\x9b\xe9\x87\x8f\xe6\x88\x92\xe6\x8c\x87", "\xe5\xa2\x9e\xe5\x8a\xa0\xe6\x94\xbb\xe5\x87\xbb\xe5\x8a\x9b\xe7\x9a\x84\xe6\x88\x92\xe6\x8c\x87", 60, 5, 2));
+        inventory.addItem(std::make_unique<EquipmentItem>("力量戒指", "增加攻击力的戒指", 60, 5, 2));
     }
-    else if (itemName == "\xe6\xb2\xbb\xe7\x96\x97\xe8\x8d\xaf\xe6\xb0\xb4")
+    else if (itemName == "治疗药水")
     {
-        inventory.addItem(std::make_unique<MedicineItem>("\xe6\xb2\xbb\xe7\x96\x97\xe8\x8d\xaf\xe6\xb0\xb4", "\xe5\xbc\xba\xe5\x8a\x9b\xe6\xb2\xbb\xe7\x96\x97\xe8\x8d\xaf\xe6\xb0\xb4", 40, 50));
+        inventory.addItem(std::make_unique<MedicineItem>("治疗药水", "强力治疗药水", 40, 50));
     }
 }

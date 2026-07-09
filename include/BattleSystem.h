@@ -1,20 +1,16 @@
-// BattleSystem.h
 #ifndef BATTLE_SYSTEM_H
 #define BATTLE_SYSTEM_H
 
+#include "BattleAI.h"
+#include "BattleDeck.h"
+#include "BattleMapper.h"
+#include "BattleTypes.h"
 #include "Character.h"
 #include "Enemy.h"
 #include "EnemyFactory.h"
-#include "AdventureManager.h"
 
 #include <string>
 #include <vector>
-
-// ============================================================
-// BattleResult
-// ------------------------------------------------------------
-// 战斗结果信息，用于驱动任务系统事件。
-// ============================================================
 
 struct BattleResult
 {
@@ -22,49 +18,59 @@ struct BattleResult
     std::string enemyName;
 };
 
-// ============================================================
-// BattleSystem
-// ------------------------------------------------------------
-// 战斗系统类。
-// 负责敌人加载、敌人选择、回合制战斗、奖励结算等。
-// ============================================================
-
+// BattleSystem 负责把 Character / Enemy 映射成独立的战斗态，
+// 再用卡牌状态机完成单场战斗。
 class BattleSystem
 {
 private:
     EnemyFactory enemyFactory;
+    static constexpr int kHandSize = 3;
 
 public:
     BattleSystem();
 
-    // 加载敌人数据（从 JSON）。
     void loadEnemies();
-
-    // 获取敌人工厂引用。
     EnemyFactory& getEnemyFactory() { return enemyFactory; }
-
-    // 显示敌人模板列表。
     void showEnemyList() const;
-
-    // 根据下标选择敌人模板。
     Enemy selectEnemy(int index) const;
-
-    // 获取敌人模板总数。
     int enemyCount() const;
 
-    // 启动一场自由战斗（玩家选择敌人），返回战斗结果。
     BattleResult startBattle(Character& player);
-
-    // 启动一场冒险战斗（根据阶段生成敌人），返回战斗结果。
     BattleResult startBattle(Character& player, int stage, bool isBoss);
-
-    // 计算伤害值。
-    // 基础公式：max(1, attack - defense)。
-    int calculateDamage(int attack, int defense) const;
+    BattleResult startBattle(Character& player, const std::vector<Enemy>& enemies, bool isBoss);
 
 private:
-    // 单敌人战斗循环。
-    bool fightOneEnemy(Character& player, const Enemy& enemy) const;
+    BattleOutcome fightOneEnemy(Character& player, const Enemy& enemy) const;
+    BattleOutcome runCardBattle(Character& player, const Enemy& enemy) const;
+    void beginRound(BattleActorState& playerState, BattleActorState& enemyState) const;
+    void printBattleState(
+        const BattleActorState& playerState,
+        const BattleActorState& enemyState,
+        int round,
+        bool playerFirst) const;
+    void printHand(const std::vector<BattleCard>& hand, const std::string& ownerLabel) const;
+    BattleDecision getPlayerDecision(
+        const BattleTurnContext& context,
+        const BattleActorState& playerState,
+        const BattleActorState& enemyState) const;
+    BattleDecision chooseCommandAction(
+        const BattleActorState& playerState,
+        const BattleActorState& enemyState) const;
+    void applyDefenseResolution(
+        BattleActorState& actor,
+        BattleDeck& actorDeck,
+        BattleAction actorAction,
+        BattleActorState& target,
+        BattleDeck& targetDeck,
+        BattleAction targetAction) const;
+    void executeAction(
+        BattleActorState& actor,
+        BattleActorState& target,
+        BattleAction action) const;
+    int calculateDamage(const BattleActorState& attacker, const BattleActorState& defender) const;
+    int calculateHealAmount(const BattleActorState& actor) const;
+    bool determinePlayerFirst(const BattleActorState& playerState, const BattleActorState& enemyState) const;
+    std::string makeHpBar(int hp, int maxHp, int width = 24) const;
 };
 
 #endif

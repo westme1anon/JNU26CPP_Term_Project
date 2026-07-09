@@ -27,7 +27,7 @@ def main() -> int:
         return 1
 
     payload = {
-        "model": "deepseek-chat",
+        "model": os.getenv("HELP_AI_MODEL", "").strip(),
         "messages": [
             {"role": "system", "content": SYSTEM_PROMPT},
             {
@@ -43,7 +43,7 @@ def main() -> int:
     }
 
     request = urllib.request.Request(
-        "https://api.deepseek.com/chat/completions",
+        os.getenv("HELP_AI_API_URL", "").strip(),
         data=json.dumps(payload).encode("utf-8"),
         headers={
             "Content-Type": "application/json",
