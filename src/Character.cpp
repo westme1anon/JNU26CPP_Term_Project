@@ -1,7 +1,9 @@
-﻿// Character.cpp
+// Character.cpp
 #include "Character.h"
 #include "GameConfig.h"
 #include "ConsoleUI.h"
+
+#include <SFML/Graphics.hpp>
 
 #include <iostream>
 #include <sstream>
@@ -200,6 +202,43 @@ void Character::deserialize(const std::string& data)
         else if (key == "defense")  defense = std::stoi(value);
         else if (key == "invincible") invincible = (std::stoi(value) != 0);
     }
+}
+
+// ============================================================
+// SFML 图形渲染（纯渲染，不修改逻辑数据）
+// ============================================================
+
+void Character::draw(sf::RenderWindow& window) const
+{
+    // ---- 玩家身体：32x32 绿色正方形 ----
+    constexpr float bodySize = 32.f;
+    sf::RectangleShape body(sf::Vector2f(bodySize, bodySize));
+    body.setPosition({posX, posY});
+    body.setFillColor(sf::Color::Green);
+
+    // ---- 血条背景（暗红色底）----
+    constexpr float barWidth = 200.f;
+    constexpr float barHeight = 16.f;
+    const float barX = posX - (barWidth - bodySize) / 2.f;  // 血条居中于身体上方
+    const float barY = posY - barHeight - 6.f;
+
+    sf::RectangleShape hpBarBg(sf::Vector2f(barWidth, barHeight));
+    hpBarBg.setPosition({barX, barY});
+    hpBarBg.setFillColor(sf::Color(80, 0, 0));  // 暗红色底
+
+    // ---- 血条前景（红色，按比例填充）----
+    float hpRatio = static_cast<float>(hp) / static_cast<float>(maxHp);
+    if (hpRatio < 0.f) hpRatio = 0.f;
+    if (hpRatio > 1.f) hpRatio = 1.f;
+
+    sf::RectangleShape hpBarFill(sf::Vector2f(barWidth * hpRatio, barHeight));
+    hpBarFill.setPosition({barX, barY});
+    hpBarFill.setFillColor(sf::Color::Red);
+
+    // ---- 绘制顺序：身体 → 血条底 → 血条前景 ----
+    window.draw(body);
+    window.draw(hpBarBg);
+    window.draw(hpBarFill);
 }
 
 std::string Character::getName() const { return name; }

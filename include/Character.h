@@ -3,11 +3,18 @@
 
 #include <string>
 
+// 前向声明 SFML 类型，避免在头文件中引入 SFML 头文件
+namespace sf
+{
+    class RenderWindow;
+}
+
 // ============================================================
 // Character
 // ------------------------------------------------------------
 // 玩家角色类。
 // 负责维护角色基础属性、等级成长、金币经验变化、存档序列化等。
+// 保持纯逻辑，图形渲染通过 draw() 方法独立处理。
 // ============================================================
 
 class Character
@@ -81,6 +88,11 @@ public:
     // 从字符串恢复角色数据。
     void deserialize(const std::string& data);
 
+    // ---- SFML 图形渲染 ----
+    // 在指定窗口上绘制角色的图形表示（绿色方块 + 血条）。
+    // 此方法仅负责渲染，不修改任何游戏逻辑数据。
+    void draw(sf::RenderWindow& window) const;
+
     // Getter
     std::string getName() const;
     int getLevel() const;
@@ -90,6 +102,10 @@ public:
     int getGold() const;
     int getAttack() const;
     int getDefense() const;
+
+    // ---- 角色场景位置（仅用于渲染，非逻辑属性） ----
+    float posX = 100.f;
+    float posY = 500.f;
 };
 
 #endif

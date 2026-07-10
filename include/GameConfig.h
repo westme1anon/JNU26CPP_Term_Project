@@ -1,3 +1,4 @@
+﻿// GameConfig.h
 #ifndef GAME_CONFIG_H
 #define GAME_CONFIG_H
 
@@ -12,6 +13,12 @@
 
 namespace GameConfig
 {
+    // ---- 窗口与渲染 ----
+    const unsigned int WINDOW_WIDTH = 1280;
+    const unsigned int WINDOW_HEIGHT = 720;
+    const char* const WINDOW_TITLE = "Campus RPG";
+    const int FRAME_RATE_LIMIT = 60;
+
     // 存档路径
     const std::string SAVE_FILE_PATH = "data/player_save.txt";
 
