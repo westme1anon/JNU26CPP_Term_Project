@@ -5,7 +5,6 @@
 #include <string>
 #include <filesystem>
 #include <iostream>
-#include <cstdlib>
 
 #ifdef _WIN32
 #ifndef NOMINMAX
@@ -16,32 +15,6 @@
 
 namespace PathUtil
 {
-
-inline bool isDebugLoggingEnabled()
-{
-#ifdef _WIN32
-    char* env = nullptr;
-    std::size_t length = 0;
-    const errno_t result = _dupenv_s(&env, &length, "PATHUTIL_DEBUG");
-    const bool enabled = (result == 0 && env != nullptr && env[0] != '\0' && env[0] != '0');
-    if (env != nullptr)
-    {
-        free(env);
-    }
-    return enabled;
-#else
-    const char* env = std::getenv("PATHUTIL_DEBUG");
-    return env != nullptr && env[0] != '\0' && env[0] != '0';
-#endif
-}
-
-inline void logDebug(const std::string& message)
-{
-    if (isDebugLoggingEnabled())
-    {
-        std::cout << message << "\n";
-    }
-}
 
 inline std::string getExecutableDir()
 {
@@ -81,32 +54,32 @@ inline std::string resolvePath(const std::string& relativePath)
     {
         if (std::filesystem::exists(relativePath))
             return relativePath;
-        logDebug("[PathUtil] 绝对路径不存在: " + relativePath);
+        std::cout << "[PathUtil] 绝对路径不存在: " << relativePath << "\n";
         return "";
     }
 
     std::string cwd = std::filesystem::current_path().string();
     std::string exeDir = getExecutableDir();
 
-    logDebug("[PathUtil] 查找 \"" + relativePath + "\"");
-    logDebug("[PathUtil]   CWD=" + cwd);
+    std::cout << "[PathUtil] 查找 \"" << relativePath << "\"\n";
+    std::cout << "[PathUtil]   CWD=" << cwd << "\n";
 
     // 1. 从 CWD 向上搜索
     std::string resolved = searchUpward(cwd, relativePath);
     if (!resolved.empty())
     {
-        logDebug("[PathUtil]   => 找到(CWD向上): " + resolved);
+        std::cout << "[PathUtil]   => 找到(CWD向上): " << resolved << "\n";
         return resolved;
     }
 
     // 2. 从 exe 目录向上搜索
     if (exeDir != cwd)
     {
-        logDebug("[PathUtil]   EXE=" + exeDir);
+        std::cout << "[PathUtil]   EXE=" << exeDir << "\n";
         resolved = searchUpward(exeDir, relativePath);
         if (!resolved.empty())
         {
-            logDebug("[PathUtil]   => 找到(EXE向上): " + resolved);
+            std::cout << "[PathUtil]   => 找到(EXE向上): " << resolved << "\n";
             return resolved;
         }
     }
@@ -115,7 +88,7 @@ inline std::string resolvePath(const std::string& relativePath)
     std::filesystem::path directPath = std::filesystem::path(cwd) / relativePath;
     if (std::filesystem::exists(directPath))
     {
-        logDebug("[PathUtil]   => 找到(CWD直接): " + directPath.string());
+        std::cout << "[PathUtil]   => 找到(CWD直接): " << directPath.string() << "\n";
         return directPath.string();
     }
 
@@ -123,11 +96,11 @@ inline std::string resolvePath(const std::string& relativePath)
     std::filesystem::path exeDirectPath = std::filesystem::path(exeDir) / relativePath;
     if (std::filesystem::exists(exeDirectPath))
     {
-        logDebug("[PathUtil]   => 找到(EXE直接): " + exeDirectPath.string());
+        std::cout << "[PathUtil]   => 找到(EXE直接): " << exeDirectPath.string() << "\n";
         return exeDirectPath.string();
     }
 
-    logDebug("[PathUtil]   => 未找到!");
+    std::cout << "[PathUtil]   => 未找到!\n";
     return "";
 }
 
