@@ -15,7 +15,7 @@ def main() -> int:
     if len(sys.argv) != 2:
         return 1
 
-    api_key = os.getenv("DEEPSEEK_API_KEY", "").strip()
+    api_key = os.getenv("HELP_AI_API_KEY", "").strip()
     if not api_key:
         return 1
 
