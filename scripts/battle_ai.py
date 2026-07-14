@@ -2,144 +2,196 @@ import io
 import json
 import os
 import sys
-from urllib import request, error
+from urllib import error, request
 
 sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8")
 sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding="utf-8")
-
-
-ELEMENT_MAP = {
-    0: "中立",
-    1: "火系",
-    2: "水系",
-    3: "草系",
-    4: "机械系",
-}
 
 
 def log(message: str) -> None:
     print(message, file=sys.stderr, flush=True)
 
 
-def has_advantage(attacker: int, defender: int) -> bool:
-    return (attacker == 1 and defender == 3) or (attacker == 3 and defender == 2) or (attacker == 2 and defender == 1)
+def parse_cards(card_text: str) -> set[str]:
+    return {card for card in card_text.split(",") if card}
 
 
-def fallback_strategy(round_num, player_first, player_action, player_hp, player_max_hp,
-                      player_atk, player_element, enemy_hp, enemy_max_hp, enemy_atk,
-                      enemy_element, available_cards, enemy_command_used, enemy_disarmed):
-    cards = {c for c in available_cards.split(",") if c}
-    has_attack = "1" in cards
-    has_defense = "2" in cards
-    has_heal = "3" in cards
-    can_command = enemy_command_used == 0
+def format_cards(card_text: str) -> str:
+    card_map = {"1": "攻击", "2": "防御", "3": "回复"}
+    cards = [card_map[card_id] for card_id in card_text.split(",") if card_id in card_map]
+    return "、".join(cards) if cards else "无"
 
-    base_damage = max(1, enemy_atk)
-    if has_advantage(enemy_element, player_element):
-        base_damage *= 2
 
-    my_hp_ratio = enemy_hp / enemy_max_hp if enemy_max_hp > 0 else 0
-    enemy_hp_ratio = player_hp / player_max_hp if player_max_hp > 0 else 0
+def estimate_attack_damage(attacker_atk: int, defender_def: int, defender_vuln: int) -> int:
+    base_damage = max(1, attacker_atk - defender_def)
+    return max(1, int(base_damage * (1.0 + 0.5 * defender_vuln)))
+
+
+def fallback_strategy(
+    round_num,
+    player_first,
+    player_action,
+    player_hp,
+    player_max_hp,
+    player_atk,
+    player_def,
+    player_vulnerability,
+    player_cards_text,
+    player_command_used,
+    enemy_hp,
+    enemy_max_hp,
+    enemy_atk,
+    enemy_def,
+    enemy_vulnerability,
+    enemy_cards_text,
+    enemy_command_used,
+    enemy_disarmed,
+):
+    del round_num
+    del enemy_command_used
+
+    player_cards = parse_cards(player_cards_text)
+    enemy_cards = parse_cards(enemy_cards_text)
+    player_can_command = player_command_used == 0
+
+    player_has_attack = "1" in player_cards
+    player_has_defense = "2" in player_cards
+    player_has_heal = "3" in player_cards
+
+    has_attack = "1" in enemy_cards
+    has_defense = "2" in enemy_cards
+    has_heal = "3" in enemy_cards
+
+    my_damage = estimate_attack_damage(enemy_atk, player_def, player_vulnerability)
+    player_damage = estimate_attack_damage(player_atk, enemy_def, enemy_vulnerability)
+    my_hp_ratio = enemy_hp / enemy_max_hp if enemy_max_hp > 0 else 0.0
+    player_hp_ratio = player_hp / player_max_hp if player_max_hp > 0 else 0.0
     heal_amount = max(1, int(enemy_atk * 0.8))
     hp_gap = enemy_max_hp - enemy_hp
 
     if enemy_disarmed == 1:
-        if my_hp_ratio < 0.8 and (has_heal or can_command):
-            return 3, "[本地AI] 当前处于缴械回合，优先回复保血。"
-        if has_defense or can_command:
-            return 2, "[本地AI] 当前处于缴械回合，改为防御等待下回合。"
+        if my_hp_ratio < 0.8 and has_heal:
+            return 3, "[本地AI] 当前被缴械，优先回复保命。"
+        if has_defense:
+            return 2, "[本地AI] 当前被缴械，攻击无效，先防御过渡。"
 
     if player_first == 1 and player_action != 0:
-        if player_action == 1 and (has_defense or can_command):
-            return 2, "[本地AI] 后手观察到玩家攻击，选择防御反制。"
+        if player_action == 1 and has_defense:
+            return 2, "[本地AI] 玩家已公开攻击意图，优先防御反制。"
         if player_action == 2:
-            if ((hp_gap >= heal_amount and has_heal) or (has_heal and my_hp_ratio < 0.9) or can_command):
-                return 3, "[本地AI] 后手观察到玩家防御，选择回复安全过牌。"
-            return 1, "[本地AI] 后手观察到玩家防御，但缺少合适回复，转为进攻。"
-        if player_action == 3 and (has_attack or can_command):
-            return 1, "[本地AI] 后手观察到玩家回复，选择攻击施压。"
+            if (hp_gap >= heal_amount and has_heal) or (has_heal and my_hp_ratio < 0.9):
+                return 3, "[本地AI] 玩家偏防守，趁机回复。"
+            if has_attack:
+                return 1, "[本地AI] 玩家偏防守，转为攻击施压。"
+        if player_action == 3 and has_attack:
+            return 1, "[本地AI] 玩家回复时立刻攻击施压。"
 
-    if my_hp_ratio < 0.25 and (has_heal or can_command):
-        return 3, "[本地AI] 自身血量过低，优先回复。"
-    if player_hp <= base_damage and (has_attack or can_command):
-        return 1, "[本地AI] 发现斩杀线，直接攻击。"
-    if has_advantage(enemy_element, player_element) and my_hp_ratio >= 0.4 and (has_attack or can_command):
-        return 1, "[本地AI] 具备元素克制且血量健康，主动攻击。"
-    if has_advantage(player_element, enemy_element) and my_hp_ratio < 0.5 and (has_defense or can_command):
-        return 2, "[本地AI] 被元素克制且血量偏低，优先防御。"
-    if 0.25 <= my_hp_ratio < 0.6 and hp_gap >= heal_amount and (has_heal or can_command):
-        return 3, "[本地AI] 中等血量且回复收益可观，选择回复。"
-    if enemy_hp_ratio < 0.4 and (has_attack or can_command):
-        return 1, "[本地AI] 对手血量偏低，继续攻击压制。"
-    if my_hp_ratio >= 0.6 and (has_attack or can_command):
-        return 1, "[本地AI] 自身状态健康，优先攻击。"
-    if has_attack or can_command:
+    if player_first == 0:
+        if player_has_defense and not player_has_attack and not player_can_command and has_heal and my_hp_ratio < 0.9:
+            return 3, "[本地AI] 玩家这回合偏防守，先回复争取收益。"
+        if player_has_heal and not player_has_defense and not player_can_command and has_attack:
+            return 1, "[本地AI] 玩家手里有回复空间，优先攻击施压。"
+        if (player_has_attack or player_can_command) and has_defense and player_damage >= max(1, enemy_hp // 4):
+            return 2, "[本地AI] 玩家具备明确进攻能力，提前防御更稳。"
+
+    if player_hp <= my_damage and has_attack:
+        return 1, "[本地AI] 存在斩杀机会，直接攻击。"
+    if my_hp_ratio < 0.25 and has_heal:
+        return 3, "[本地AI] 血量过低，优先回复。"
+    if 0.25 <= my_hp_ratio < 0.6 and hp_gap >= heal_amount and has_heal:
+        return 3, "[本地AI] 中等血量且回复收益较高，选择回复。"
+    if player_hp_ratio < 0.4 and has_attack:
+        return 1, "[本地AI] 玩家血量偏低，继续攻击压制。"
+    if my_hp_ratio >= 0.6 and has_attack:
+        return 1, "[本地AI] 当前状态健康，优先攻击。"
+    if has_attack:
         return 1, "[本地AI] 默认选择攻击。"
     if has_heal:
-        return 3, "[本地AI] 缺少攻击手段，选择回复。"
+        return 3, "[本地AI] 缺少攻击牌，选择回复。"
     if has_defense:
-        return 2, "[本地AI] 仅剩防御手段，选择防御。"
-    return 1, "[本地AI] 无可用信息，保底返回攻击。"
+        return 2, "[本地AI] 仅剩防御牌，选择防御。"
+    return 1, "[本地AI] 没有有效手牌信息，保底攻击。"
 
 
-def build_prompt(round_num, is_player_first, player_action, player_hp, player_max_hp, player_atk,
-                 player_element, enemy_hp, enemy_max_hp, enemy_atk, enemy_element,
-                 available_cards, enemy_command_used, enemy_disarmed) -> str:
-    intent_info = ""
-    if is_player_first == 1 and player_action != 0:
-        actions_map = {1: "【攻击】", 2: "【防御】", 3: "【回复】"}
+def build_prompt(
+    round_num,
+    player_first,
+    player_action,
+    player_hp,
+    player_max_hp,
+    player_atk,
+    player_def,
+    player_vulnerability,
+    player_cards_text,
+    player_command_used,
+    enemy_hp,
+    enemy_max_hp,
+    enemy_atk,
+    enemy_def,
+    enemy_vulnerability,
+    enemy_cards_text,
+    enemy_command_used,
+    enemy_disarmed,
+) -> str:
+    actions_map = {1: "攻击", 2: "防御", 3: "回复"}
+    enemy_damage = estimate_attack_damage(enemy_atk, player_def, player_vulnerability)
+    player_damage = estimate_attack_damage(player_atk, enemy_def, enemy_vulnerability)
+    enemy_status = "本回合无法攻击" if enemy_disarmed == 1 else "正常"
+
+    if player_first == 1 and player_action != 0:
         intent_info = (
-            f"\n作为后手，你观察到了对手本回合的意图是："
-            f"{actions_map.get(player_action, '【未知】')}。你可以据此进行反制。"
+            f"你是后手，已经看到玩家本回合公开动作：{actions_map.get(player_action, '未知')}。\n"
+            "你应直接利用这个已知信息反制。"
         )
     else:
-        intent_info = "\n你是本回合的【先手】，你需要率先做出决策，对手将根据你的决策应对。"
-
-    card_map = {"1": "攻击牌", "2": "防御牌", "3": "回复牌"}
-    avail_list = [card_map.get(card_id) for card_id in available_cards.split(",") if card_id in card_map]
-    avail_str = "、".join(avail_list) if avail_list else "无"
-
-    enemy_type = ELEMENT_MAP.get(enemy_element, "中立")
-    player_type = ELEMENT_MAP.get(player_element, "中立")
+        intent_info = (
+            "你是先手，看不到玩家最终动作，但你已经知道玩家本回合抽到的手牌类型。\n"
+            "请根据这些已知手牌推断玩家更可能的动作。"
+        )
 
     return f"""
-【游戏规则系统】
-这是一款回合制卡牌对战游戏。每回合双方各自从牌库抽 3 张手牌，你必须且只能从手牌中选择 1 张打出。
+你是校园RPG的敌方战斗AI。
 
-卡牌效果：
-1. 攻击牌：造成基于属性体系计算的伤害。基础公式为 max(1, 攻击方ATK - 防守方DEF)。
-   如果发生元素克制（火克草、草克水、水克火），伤害翻倍。
-   如果目标处于易伤状态，每层额外承受 +50% 伤害。
-   如果目标本回合处于防御姿态，伤害会被明显减免。
-2. 防御牌：本回合大幅减伤。
-   - 防反：若你防御时对手攻击，则对手【下回合】缴械，且永久失去一张攻击牌。
-   - 防空惩罚：若你防御时对手没有攻击，则你获得 1 层易伤，且永久失去一张防御牌。
-3. 回复牌：回复自身攻击力 × 80% 的生命值（向下取整），且不会超过最大生命值。
+硬性规则：
+1. 你只能从自己当前手牌中选择一个真实存在的动作。
+2. 你绝对不能使用“指令”。
+3. 你绝对不能使用背包或战斗道具。
+4. 你不能把下列明示数值说成“未知”；这些数值就是你当前已经知道的战斗信息。
 
-【指令机制】
-双方各有一次“指令”机会，可无视手牌，强制选择攻击/防御/回复中的任意一种动作。
-铁律：指令极其珍贵，不要为了空过而浪费。只有在斩杀、保命或完成关键反制时才值得使用。
+指令说明：
+- 指令是玩家每场战斗只有一次的强制行动机会。
+- 玩家若指令=可用，则可以无视当前手牌，强制执行攻击、防御、回复，或使用一次战斗道具。
+- 玩家若指令=已用，则本回合只能从当前手牌里出牌。
+- 你自己没有指令可用，永远只能从自己的当前手牌出牌。
 
-【重要限制】
-你作为 AI 没有背包系统，不能使用任何战斗外道具。你只能通过手牌出牌，或在必要时发动一次指令。
+战斗规则摘要：
+- 攻击基础伤害 = max(1, 攻击方ATK - 防守方DEF)
+- 易伤：目标每层额外承受 +50% 伤害
+- 防御：能减伤；若成功对上攻击，可使对手下回合缴械
+- 回复：恢复自身 ATK 的 50% 生命
 
-【当前战报】
-第 {round_num} 回合
-[你] {enemy_type} | ATK:{enemy_atk} | HP:{enemy_hp}/{enemy_max_hp}
-[指令] {"【已用】只能从手牌中出牌" if enemy_command_used == 1 else "【可用】可无视手牌强行指定一种动作"}
-[状态] {"【缴械】本回合无法攻击" if enemy_disarmed == 1 else "【正常】"}
-[手牌] {avail_str}
-[对手] {player_type} | ATK:{player_atk} | HP:{player_hp}/{player_max_hp}
+当前战况：
+- 回合数：{round_num}
+- 你：HP={enemy_hp}/{enemy_max_hp}，ATK={enemy_atk}，DEF={enemy_def}，易伤={enemy_vulnerability}，状态={enemy_status}，指令=不可用
+- 你的手牌：{format_cards(enemy_cards_text)}
+- 玩家：HP={player_hp}/{player_max_hp}，ATK={player_atk}，DEF={player_def}，易伤={player_vulnerability}，指令={'已用' if player_command_used == 1 else '可用'}
+- 玩家本回合手牌：{format_cards(player_cards_text)}
+- 若你本回合攻击玩家，预计伤害约为：{enemy_damage}
+- 若玩家本回合攻击你，预计伤害约为：{player_damage}
+
+局面补充：
 {intent_info}
 
-【决策规则】
-- 如果指令已用，你只能从当前手牌中选择存在的牌。
-- 如果指令未用，你可以正常出牌，也可以发动指令强行选择动作。
-- 结合血量、克制关系、对手意图和手牌情况做决策。
-- 请优先避免无意义的防空惩罚。
+决策要求：
+- 先做简短分析，但不要编造未知属性
+- 如果玩家指令仍可用，不要因为玩家当前没抽到某张牌，就断定他绝对做不出对应动作
+- 优先避免明显吃亏的防空或无意义回复
+- 只能在最后单独输出一个数字
 
-请先简要分析战况，最后在独立的一行仅输出一个数字：
-1=攻击  2=防御  3=回复
+输出规则：
+1=攻击
+2=防御
+3=回复
 """
 
 
@@ -148,8 +200,7 @@ def extract_message_text(response_payload: dict) -> str:
     if not choices:
         return ""
 
-    first = choices[0]
-    message = first.get("message", {})
+    message = choices[0].get("message", {})
     content = message.get("content", "")
     if isinstance(content, list):
         text_parts = []
@@ -169,18 +220,20 @@ def try_streaming_llm(prompt: str) -> int:
     if not api_url or not api_key or not model:
         raise RuntimeError("missing api config")
 
-    body = json.dumps({
-        "model": model,
-        "messages": [
-            {
-                "role": "system",
-                "content": "你是由大语言模型驱动的卡牌战斗 AI。请先简要分析战况，最后在独立的一行仅输出决策数字。"
-            },
-            {"role": "user", "content": prompt}
-        ],
-        "temperature": 0.2,
-        "stream": True
-    }).encode("utf-8")
+    body = json.dumps(
+        {
+            "model": model,
+            "messages": [
+                {
+                    "role": "system",
+                    "content": "你是校园RPG的敌方战斗AI。你不能使用指令，只能从当前手牌中选择攻击、防御、回复之一。请基于输入里明确给出的属性与手牌做判断，不要把已给出的ATK、DEF、HP、易伤说成未知。最后单独输出数字决策。",
+                },
+                {"role": "user", "content": prompt},
+            ],
+            "temperature": 0.2,
+            "stream": True,
+        }
+    ).encode("utf-8")
 
     req = request.Request(
         api_url,
@@ -196,7 +249,7 @@ def try_streaming_llm(prompt: str) -> int:
     printed_header = False
 
     with request.urlopen(req, timeout=30) as resp:
-        log("[远程AI] 调用成功，开始流式输出思考过程。")
+        log("[远程AI] 调用成功，开始流式输出分析。")
 
         for raw_line in resp:
             line = raw_line.decode("utf-8", errors="ignore").strip()
@@ -236,7 +289,7 @@ def try_streaming_llm(prompt: str) -> int:
                 continue
 
             if not printed_header:
-                log("[远程AI] 思考/分析：")
+                log("[远程AI] 分析：")
                 printed_header = True
 
             print(chunk, file=sys.stderr, end="", flush=True)
@@ -259,17 +312,19 @@ def try_non_streaming_llm(prompt: str) -> int:
     if not api_url or not api_key or not model:
         raise RuntimeError("missing api config")
 
-    body = json.dumps({
-        "model": model,
-        "messages": [
-            {
-                "role": "system",
-                "content": "你是由大语言模型驱动的卡牌战斗 AI。请先简要分析战况，最后在独立的一行仅输出决策数字。"
-            },
-            {"role": "user", "content": prompt}
-        ],
-        "temperature": 0.2
-    }).encode("utf-8")
+    body = json.dumps(
+        {
+            "model": model,
+            "messages": [
+                {
+                    "role": "system",
+                    "content": "你是校园RPG的敌方战斗AI。你不能使用指令，只能从当前手牌中选择攻击、防御、回复之一。请基于输入里明确给出的属性与手牌做判断，不要把已给出的ATK、DEF、HP、易伤说成未知。最后单独输出数字决策。",
+                },
+                {"role": "user", "content": prompt},
+            ],
+            "temperature": 0.2,
+        }
+    ).encode("utf-8")
 
     req = request.Request(
         api_url,
@@ -290,7 +345,7 @@ def try_non_streaming_llm(prompt: str) -> int:
         raise RuntimeError("empty model output")
 
     log("[远程AI] 调用成功。")
-    log("[远程AI] 思考/分析：")
+    log("[远程AI] 分析：")
     log(content.strip())
 
     for ch in reversed(content):
@@ -308,7 +363,7 @@ def call_remote_llm(prompt: str) -> int:
 
 
 def main():
-    if len(sys.argv) < 15:
+    if len(sys.argv) < 19:
         print("1")
         return
 
@@ -318,28 +373,64 @@ def main():
     player_hp = int(sys.argv[4])
     player_max_hp = int(sys.argv[5])
     player_atk = int(sys.argv[6])
-    player_element = int(sys.argv[7])
-    enemy_hp = int(sys.argv[8])
-    enemy_max_hp = int(sys.argv[9])
-    enemy_atk = int(sys.argv[10])
-    enemy_element = int(sys.argv[11])
-    available_cards = sys.argv[12]
-    enemy_command_used = int(sys.argv[13])
-    enemy_disarmed = int(sys.argv[14])
+    player_def = int(sys.argv[7])
+    player_vulnerability = int(sys.argv[8])
+    player_cards_text = sys.argv[9]
+    player_command_used = int(sys.argv[10])
+    enemy_hp = int(sys.argv[11])
+    enemy_max_hp = int(sys.argv[12])
+    enemy_atk = int(sys.argv[13])
+    enemy_def = int(sys.argv[14])
+    enemy_vulnerability = int(sys.argv[15])
+    enemy_cards_text = sys.argv[16]
+    enemy_command_used = int(sys.argv[17])
+    enemy_disarmed = int(sys.argv[18])
 
     prompt = build_prompt(
-        round_num, player_first, player_action, player_hp, player_max_hp, player_atk,
-        player_element, enemy_hp, enemy_max_hp, enemy_atk, enemy_element,
-        available_cards, enemy_command_used, enemy_disarmed)
+        round_num,
+        player_first,
+        player_action,
+        player_hp,
+        player_max_hp,
+        player_atk,
+        player_def,
+        player_vulnerability,
+        player_cards_text,
+        player_command_used,
+        enemy_hp,
+        enemy_max_hp,
+        enemy_atk,
+        enemy_def,
+        enemy_vulnerability,
+        enemy_cards_text,
+        enemy_command_used,
+        enemy_disarmed,
+    )
 
     try:
         action = call_remote_llm(prompt)
     except Exception as exc:
         log(f"[远程AI] 调用失败，切换本地策略：{exc}")
         action, reason = fallback_strategy(
-            round_num, player_first, player_action, player_hp, player_max_hp,
-            player_atk, player_element, enemy_hp, enemy_max_hp, enemy_atk,
-            enemy_element, available_cards, enemy_command_used, enemy_disarmed)
+            round_num,
+            player_first,
+            player_action,
+            player_hp,
+            player_max_hp,
+            player_atk,
+            player_def,
+            player_vulnerability,
+            player_cards_text,
+            player_command_used,
+            enemy_hp,
+            enemy_max_hp,
+            enemy_atk,
+            enemy_def,
+            enemy_vulnerability,
+            enemy_cards_text,
+            enemy_command_used,
+            enemy_disarmed,
+        )
         log(reason)
 
     print(str(action))
@@ -349,5 +440,5 @@ if __name__ == "__main__":
     try:
         main()
     except error.URLError as exc:
-        log(f"[远程AI] 网络错误，切换本地保底输出：{exc}")
+        log(f"[远程AI] 网络错误，切换保底输出：{exc}")
         print("1")

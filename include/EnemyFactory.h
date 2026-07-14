@@ -44,6 +44,9 @@ public:
 
     // 随机选取一个模板。
     const Enemy& pickRandomTemplate() const;
+
+    // 按层级随机选取模板；若该层级没有模板，则回退到任意模板。
+    const Enemy& pickRandomTemplate(EnemyTier tier) const;
 };
 
 #endif

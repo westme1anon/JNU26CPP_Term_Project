@@ -5,6 +5,7 @@
 
 #include <cstdlib>
 #include <iostream>
+#include <vector>
 
 EnemyFactory::EnemyFactory()
 {
@@ -81,7 +82,7 @@ std::vector<Enemy> EnemyFactory::generateEnemies(int stage) const
     }
 
     auto pick = [this](EnemyTier tier) -> Enemy {
-        const Enemy& tmpl = pickRandomTemplate();
+        const Enemy& tmpl = pickRandomTemplate(tier);
         Enemy e(
             tmpl.getName(),
             tmpl.getHp(),
@@ -156,5 +157,31 @@ const Enemy& EnemyFactory::pickRandomTemplate() const
         return fallback;
     }
     int idx = rand() % templates.size();
+    return templates[idx];
+}
+
+const Enemy& EnemyFactory::pickRandomTemplate(EnemyTier tier) const
+{
+    if (templates.empty())
+    {
+        static Enemy fallback;
+        return fallback;
+    }
+
+    std::vector<int> candidates;
+    for (int i = 0; i < static_cast<int>(templates.size()); ++i)
+    {
+        if (templates[i].getTier() == tier)
+        {
+            candidates.push_back(i);
+        }
+    }
+
+    if (candidates.empty())
+    {
+        return pickRandomTemplate();
+    }
+
+    const int idx = candidates[rand() % candidates.size()];
     return templates[idx];
 }

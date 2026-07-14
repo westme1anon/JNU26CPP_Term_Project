@@ -49,6 +49,26 @@ std::string trim(const std::string& value)
     return value.substr(start, end - start + 1);
 }
 
+bool hasNonEmptyEnv(const char* key)
+{
+#if defined(_WIN32)
+    char* valueBuffer = nullptr;
+    std::size_t valueLength = 0;
+    const int result = _dupenv_s(&valueBuffer, &valueLength, key);
+    const bool hasValue = (result == 0 && valueBuffer != nullptr && valueLength > 1);
+    free(valueBuffer);
+    return hasValue;
+#else
+    const char* valueBuffer = std::getenv(key);
+    return valueBuffer != nullptr && valueBuffer[0] != '\0';
+#endif
+}
+
+bool hasAssistantApiKey()
+{
+    return hasNonEmptyEnv("HELP_AI_API_KEY") || hasNonEmptyEnv("DEEPSEEK_API_KEY");
+}
+
 std::filesystem::path executableDirectory()
 {
 #if defined(_WIN32)
@@ -210,29 +230,14 @@ std::string buildFallbackPrefix(AiFallbackReason reason)
 
 AiQueryResult queryPythonAssistant(const std::string& gameState)
 {
-#if defined(_WIN32)
-    char* apiKeyBuffer = nullptr;
-    std::size_t apiKeyLength = 0;
-    if (_dupenv_s(&apiKeyBuffer, &apiKeyLength, "DEEPSEEK_API_KEY") != 0 ||
-        apiKeyBuffer == nullptr || apiKeyLength <= 1)
-    {
-        free(apiKeyBuffer);
-        return {"", AiFallbackReason::MissingApiKey};
-    }
-#else
-    const char* apiKeyBuffer = std::getenv("DEEPSEEK_API_KEY");
-    if (!apiKeyBuffer || *apiKeyBuffer == '\0')
+    if (!hasAssistantApiKey())
     {
         return {"", AiFallbackReason::MissingApiKey};
     }
-#endif
 
     const std::filesystem::path scriptPath = findPythonScriptPath();
     if (scriptPath.empty())
     {
-#if defined(_WIN32)
-        free(apiKeyBuffer);
-#endif
         return {"", AiFallbackReason::MissingScript};
     }
 
@@ -242,9 +247,6 @@ AiQueryResult queryPythonAssistant(const std::string& gameState)
         std::ofstream output(inputPath, std::ios::binary);
         if (!output.is_open())
         {
-#if defined(_WIN32)
-            free(apiKeyBuffer);
-#endif
             return {"", AiFallbackReason::TempFileFailed};
         }
         output << gameState;
@@ -257,17 +259,11 @@ AiQueryResult queryPythonAssistant(const std::string& gameState)
         runCommandAndCapture("py -3 -X utf8 " + quotedScript + " " + quotedInput + " 2>NUL"));
     if (!pyLauncherOutput.empty())
     {
-#if defined(_WIN32)
-        free(apiKeyBuffer);
-#endif
         return {pyLauncherOutput, AiFallbackReason::None};
     }
 
     const std::string pythonOutput = trim(
         runCommandAndCapture("python -X utf8 " + quotedScript + " " + quotedInput + " 2>NUL"));
-#if defined(_WIN32)
-    free(apiKeyBuffer);
-#endif
     if (!pythonOutput.empty())
     {
         return {pythonOutput, AiFallbackReason::None};

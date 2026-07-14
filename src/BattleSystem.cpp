@@ -42,7 +42,7 @@ Enemy BattleSystem::selectEnemy(int index) const
     const int count = enemyFactory.templateCount();
     if (count == 0 || index < 0 || index >= count)
     {
-        const Enemy& tmpl = enemyFactory.pickRandomTemplate();
+        const Enemy& tmpl = enemyFactory.pickRandomTemplate(EnemyTier::Minion);
         Enemy fallback(
             tmpl.getName(),
             tmpl.getHp(),
@@ -256,7 +256,7 @@ BattleOutcome BattleSystem::runCardBattle(Character& player, Inventory& inventor
             playerDecision = getPlayerDecision(context, playerState, enemyState, inventory);
             if (playerDecision.action == BattleAction::Escape)
             {
-                BattleMapper::applyPlayerHp(player, playerState.currentHp);
+                BattleMapper::applyPlayerHp(player, playerState.currentHp, playerState.maxHp);
                 return BattleOutcome::PLAYER_ESCAPE;
             }
 
@@ -280,7 +280,7 @@ BattleOutcome BattleSystem::runCardBattle(Character& player, Inventory& inventor
             playerDecision = getPlayerDecision(context, playerState, enemyState, inventory);
             if (playerDecision.action == BattleAction::Escape)
             {
-                BattleMapper::applyPlayerHp(player, playerState.currentHp);
+                BattleMapper::applyPlayerHp(player, playerState.currentHp, playerState.maxHp);
                 return BattleOutcome::PLAYER_ESCAPE;
             }
 
@@ -297,12 +297,6 @@ BattleOutcome BattleSystem::runCardBattle(Character& player, Inventory& inventor
                 std::cout << "你发动了指令，强制使用战斗道具。\n";
             else
                 std::cout << "你发动了指令，强制执行 [" << toString(playerDecision.action) << "]。\n";
-        }
-        if (enemyDecision.usedCommand)
-        {
-            enemyState.commandUsed = true;
-            std::cout << enemyState.name << " 发动了指令，强制执行 ["
-                      << toString(enemyDecision.action) << "]。\n";
         }
 
         // incomingDamageMultiplier 是“本回合局部状态”，每轮开始时都重置。
@@ -335,14 +329,14 @@ BattleOutcome BattleSystem::runCardBattle(Character& player, Inventory& inventor
         std::cout << "\n回合结束 -> 你的 HP: " << playerState.currentHp
                   << " | 敌方 HP: " << enemyState.currentHp << "\n";
 
-        BattleMapper::applyPlayerHp(player, playerState.currentHp);
+        BattleMapper::applyPlayerHp(player, playerState.currentHp, playerState.maxHp);
         ConsoleUI::pause();
 
         playerFirst = !playerFirst;
         ++round;
     }
 
-    BattleMapper::applyPlayerHp(player, playerState.currentHp);
+    BattleMapper::applyPlayerHp(player, playerState.currentHp, playerState.maxHp);
     return playerState.isAlive() ? BattleOutcome::PLAYER_WIN : BattleOutcome::PLAYER_DEAD;
 }
 
@@ -367,7 +361,7 @@ void BattleSystem::printBattleState(
     std::cout << "第 " << round << " 回合  |  "
               << (playerFirst ? "你先手" : "敌方先手") << "\n\n";
 
-    std::cout << playerState.name << " [" << toString(playerState.element) << "] "
+    std::cout << playerState.name << " "
               << "HP: " << playerState.currentHp << "/" << playerState.maxHp
               << " " << makeHpBar(playerState.currentHp, playerState.maxHp) << "\n";
     std::cout << "ATK: " << playerState.attack
@@ -376,14 +370,14 @@ void BattleSystem::printBattleState(
               << "  易伤: " << playerState.vulnerabilityStacks
               << "  指令: " << (playerState.commandUsed ? "已用" : "可用") << "\n\n";
 
-    std::cout << enemyState.name << " [" << toString(enemyState.element) << "] "
+    std::cout << enemyState.name << " "
               << "HP: " << enemyState.currentHp << "/" << enemyState.maxHp
               << " " << makeHpBar(enemyState.currentHp, enemyState.maxHp) << "\n";
     std::cout << "ATK: " << enemyState.attack
               << "  DEF: " << enemyState.defense
               << "  SPD: " << enemyState.speed
               << "  易伤: " << enemyState.vulnerabilityStacks
-              << "  指令: " << (enemyState.commandUsed ? "已用" : "可用") << "\n";
+              << "  指令: 不可用\n";
 }
 
 void BattleSystem::printHand(const std::vector<BattleCard>& hand, const std::string& ownerLabel) const
@@ -609,9 +603,6 @@ int BattleSystem::calculateDamage(const BattleActorState& attacker, const Battle
 {
     // 先按现项目属性体系得到基础伤害，再叠加卡牌战斗的状态修正。
     int damage = std::max(1, attacker.attack - defender.defense);
-    if (hasTypeAdvantage(attacker.element, defender.element))
-        damage *= 2;
-
     double finalDamage = static_cast<double>(damage);
     finalDamage *= defender.incomingDamageMultiplier;
     finalDamage *= (1.0 + 0.5 * defender.vulnerabilityStacks);

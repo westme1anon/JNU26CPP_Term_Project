@@ -33,22 +33,3 @@ std::string toString(CardType type)
     default: return "未知牌";
     }
 }
-
-std::string toString(ElementType element)
-{
-    switch (element)
-    {
-    case ElementType::Fire: return "火";
-    case ElementType::Water: return "水";
-    case ElementType::Grass: return "草";
-    case ElementType::Mech: return "机";
-    default: return "无";
-    }
-}
-
-bool hasTypeAdvantage(ElementType attacker, ElementType defender)
-{
-    return (attacker == ElementType::Fire && defender == ElementType::Grass) ||
-           (attacker == ElementType::Grass && defender == ElementType::Water) ||
-           (attacker == ElementType::Water && defender == ElementType::Fire);
-}
